@@ -516,7 +516,7 @@ WidgetCard {
           cursorShape: Qt.PointingHandCursor
           onClicked: {
             if (rootRef && rootRef.toggleWidgetEnabled) {
-              rootRef.toggleWidgetEnabled(pomodoroWidgetRoot.widgetId, false)
+              rootRef.toggleWidgetEnabled(pomodoroWidgetRoot.widgetId, false, pomodoroWidgetRoot.monitorName)
             }
           }
         }
@@ -555,7 +555,7 @@ WidgetCard {
           onReleased: {
             pomodoroWidgetRoot.customGripDragging = false
             if (rootRef && rootRef.saveWidgetPos) {
-              rootRef.saveWidgetPos(pomodoroWidgetRoot.widgetId, Math.round(targetItem.x), Math.round(targetItem.y))
+              rootRef.saveWidgetPos(pomodoroWidgetRoot.widgetId, Math.round(targetItem.x), Math.round(targetItem.y), Math.round(pomodoroWidgetRoot.width), Math.round(pomodoroWidgetRoot.height), pomodoroWidgetRoot.monitorName)
             }
           }
         }

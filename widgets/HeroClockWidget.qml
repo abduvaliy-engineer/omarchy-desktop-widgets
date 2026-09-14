@@ -12,8 +12,11 @@ Item {
 
   property string widgetId: "clock"
   property var rootRef: null
-  readonly property real screenWidth: (rootRef && rootRef.screenWidth > 0) ? rootRef.screenWidth : 1920
-  readonly property real screenHeight: (rootRef && rootRef.screenHeight > 0) ? rootRef.screenHeight : 1080
+  property string monitorName: ""
+  property real monitorWidth: 0
+  property real monitorHeight: 0
+  readonly property real screenWidth: (monitorWidth > 0) ? monitorWidth : ((rootRef && rootRef.screenWidth > 0) ? rootRef.screenWidth : 1920)
+  readonly property real screenHeight: (monitorHeight > 0) ? monitorHeight : ((rootRef && rootRef.screenHeight > 0) ? rootRef.screenHeight : 1080)
   property real defaultX: Math.round((screenWidth - width) / 2)
   property real defaultY: Math.round((screenHeight - height) / 2)
 
@@ -228,7 +231,7 @@ Item {
         clockWidgetRoot.targetItem.x = snappedX
         clockWidgetRoot.targetItem.y = snappedY
         if (rootRef && rootRef.saveWidgetPos) {
-          rootRef.saveWidgetPos(clockWidgetRoot.widgetId, snappedX, snappedY)
+          rootRef.saveWidgetPos(clockWidgetRoot.widgetId, snappedX, snappedY, Math.round(clockWidgetRoot.width), Math.round(clockWidgetRoot.height), clockWidgetRoot.monitorName)
         }
       }
     }
@@ -270,7 +273,7 @@ Item {
       cursorShape: Qt.PointingHandCursor
       onClicked: {
         if (rootRef && rootRef.toggleWidgetEnabled) {
-          rootRef.toggleWidgetEnabled(clockWidgetRoot.widgetId, false)
+          rootRef.toggleWidgetEnabled(clockWidgetRoot.widgetId, false, clockWidgetRoot.monitorName)
         }
       }
     }
@@ -421,7 +424,7 @@ Item {
       clockWidgetRoot.targetItem.x = snappedX
       clockWidgetRoot.targetItem.y = snappedY
       if (rootRef && rootRef.saveWidgetPos) {
-        rootRef.saveWidgetPos(clockWidgetRoot.widgetId, snappedX, snappedY)
+        rootRef.saveWidgetPos(clockWidgetRoot.widgetId, snappedX, snappedY, Math.round(clockWidgetRoot.width), Math.round(clockWidgetRoot.height), clockWidgetRoot.monitorName)
       }
     }
   }

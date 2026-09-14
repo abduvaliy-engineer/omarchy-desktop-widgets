@@ -7,7 +7,11 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// Import WidgetCard from the shared directory or the plugin directory
+// Import WidgetCard from the shared directory or the plugin directory.
+// Keep custom widgets on WidgetCard when possible: it automatically preserves
+// monitorName/monitorWidth/monitorHeight so positions stay per-monitor.
+// Standalone widgets must pass monitorName into rootRef.saveWidgetPos(...) and
+// rootRef.toggleWidgetEnabled(...) to avoid changing another monitor's layout.
 import "../shared"
 
 WidgetCard {

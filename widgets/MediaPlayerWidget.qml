@@ -339,7 +339,7 @@ WidgetCard {
           cursorShape: Qt.PointingHandCursor
           onClicked: {
             if (rootRef && rootRef.toggleWidgetEnabled) {
-              rootRef.toggleWidgetEnabled(mediaWidgetRoot.widgetId, false)
+              rootRef.toggleWidgetEnabled(mediaWidgetRoot.widgetId, false, mediaWidgetRoot.monitorName)
             }
           }
         }
@@ -387,7 +387,7 @@ WidgetCard {
             mediaWidgetRoot.targetItem.x = snappedX
             mediaWidgetRoot.targetItem.y = snappedY
             if (rootRef && rootRef.saveWidgetPos) {
-              rootRef.saveWidgetPos(mediaWidgetRoot.widgetId, snappedX, snappedY)
+              rootRef.saveWidgetPos(mediaWidgetRoot.widgetId, snappedX, snappedY, mediaWidgetRoot.snapVal(mediaWidgetRoot.width), mediaWidgetRoot.snapVal(mediaWidgetRoot.height), mediaWidgetRoot.monitorName)
             }
           }
           onCanceled: mediaWidgetRoot.customGripDragging = false
