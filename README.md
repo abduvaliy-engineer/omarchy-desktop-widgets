@@ -282,9 +282,12 @@ All desktop widgets inherit from the base card component (`shared/WidgetCard.qml
 | **Move & Drag Physics** | Integrated grid snapping (configurable 1px, 10px, 20px, 40px), smooth scale-up animation during drag, screen edge collision clamping, and automatic coordinate persistence. |
 | **3-Axis Resizing** | Built-in corner and edge resize handles with min/max boundary constraints (`minWidth`, `minHeight`, `maxWidth`, `maxHeight`) and live dimension tooltip badge. |
 | **Right-Click Context Menu** | Standard menu with "Unlock Widgets Layout", "Reset Positions", and widget toggle, expandable via `customMenuContent: Component { ... }`. When multi-monitor displays are connected, dynamically presents **"Move to <Monitor>"** transfer options. |
-| **Multi-Monitor Geometry** | Native per-monitor dimension awareness via `monitorWidth` and `monitorHeight`, resolution-bound clamping (`maxX`, `maxY`), and display output tracking (`eDP-1`, `HDMI-A-1`, `DP-1`). |
+| **Multi-Monitor Geometry** | Native per-monitor dimension awareness via `monitorName`, `monitorWidth`, and `monitorHeight`, resolution-bound clamping (`maxX`, `maxY`), and display output tracking (`eDP-1`, `HDMI-A-1`, `DP-1`). |
 | **State Persistence API** | Built-in methods (`saveSetting`, `getSetting`, `saveSettings`, `settingsLoaded`) connected directly to Omarchy's persistent JSON state storage. |
 | **Screen Geometry Access** | `screenWidth`, `screenHeight`, `monitorWidth`, `monitorHeight`, and `rootRef` access for responsive calculations. |
+
+> [!IMPORTANT]
+> Custom widgets should extend `WidgetCard`. It carries `monitorName` through drag, resize, close, and move-to-monitor actions so saved coordinates stay local to the correct output. If you build a standalone root item instead, define `monitorName`, `monitorWidth`, and `monitorHeight`, then pass `monitorName` into `rootRef.saveWidgetPos(...)` and `rootRef.toggleWidgetEnabled(...)`; otherwise multi-monitor setups may fall back to global coordinates and affect another monitor's layout.
 
 ---
 
