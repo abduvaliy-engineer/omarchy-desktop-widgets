@@ -645,9 +645,9 @@ BarWidget {
   IpcHandler {
     target: "dagyr.desktop-widgets-update"
 
-    function check(): void { root.refresh() }
-    function open(): void { root.open() }
-    function close(): void { root.close() }
-    function toggle(): void { root.toggleDialog() }
+    function check() { root.refresh() }
+    function open() { root.open() }
+    function close() { root.close() }
+    function toggle() { root.toggleDialog() }
   }
 }

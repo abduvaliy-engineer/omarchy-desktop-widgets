@@ -111,6 +111,15 @@ QtObject {
       badge: "Transparent",
       description: "Transparent desktop portal for any directory with .desktop app launching and subfolder navigation.",
       componentUrl: Qt.resolvedUrl("FolderViewWidget.qml")
+    },
+    {
+      id: "coin_tracker",
+      name: "Coin Tracker",
+      category: "Finance",
+      icon: "\uf51e",
+      badge: "Core",
+      description: "Live cryptocurrency market tracker with multi-coin watchlist, auto-cycle, interactive sparklines, and fiat switcher.",
+      componentUrl: Qt.resolvedUrl("CoinTrackerWidget.qml")
     }
   ]
 
@@ -134,8 +143,9 @@ QtObject {
   }
 
   function getWidget(id) {
+    var targetId = (id === "btc_tracker") ? "coin_tracker" : id
     for (var i = 0; i < allWidgets.length; i++) {
-      if (allWidgets[i].id === id) return allWidgets[i]
+      if (allWidgets[i].id === targetId || allWidgets[i].id === id) return allWidgets[i]
     }
     return null
   }

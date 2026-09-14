@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "dagyr.desktop-widgets",
   "name": "Desktop Widgets",
-  "version": "1.2.2",
+  "version": "1.2.4",
   "author": "Dagyr",
   "license": "MIT",
-  "description": "Aesthetic desktop widget suite featuring 12 interactive widgets, customizable acrylic blur & corner curvature, 5 layout presets, and automatic window-state hiding.",
+  "description": "Aesthetic desktop widget suite featuring 13 interactive widgets, customizable acrylic blur & corner curvature, 5 layout presets, and automatic window-state hiding.",
   "kinds": [
     "service",
     "bar-widget"

@@ -16,8 +16,10 @@ Item {
   property real defaultX: Style.space(24)
   property real defaultY: Style.space(64)
   property var rootRef: null
-  readonly property real screenWidth: (rootRef && rootRef.screenWidth > 0) ? rootRef.screenWidth : 1920
-  readonly property real screenHeight: (rootRef && rootRef.screenHeight > 0) ? rootRef.screenHeight : 1080
+  property real monitorWidth: 0
+  property real monitorHeight: 0
+  readonly property real screenWidth: (monitorWidth > 0) ? monitorWidth : ((rootRef && rootRef.screenWidth > 0) ? rootRef.screenWidth : 1920)
+  readonly property real screenHeight: (monitorHeight > 0) ? monitorHeight : ((rootRef && rootRef.screenHeight > 0) ? rootRef.screenHeight : 1080)
 
   property var loaderItem: null
   readonly property var targetItem: loaderItem ? loaderItem : widgetCardRoot
@@ -733,6 +735,80 @@ Item {
                 if (rootRef && rootRef.saveCurrentLayout) rootRef.saveCurrentLayout()
               } else if (modelData.value === "RESET_LAYOUT") {
                 if (rootRef) rootRef.resetWidgetPositions()
+              }
+            }
+          }
+        }
+      }
+
+      // Multi-Monitor Transfer Section (Visible when 2+ displays connected)
+      ColumnLayout {
+        Layout.fillWidth: true
+        spacing: 2
+        visible: Quickshell.screens && Quickshell.screens.length > 1
+
+        Rectangle {
+          Layout.fillWidth: true
+          height: 1
+          color: Qt.rgba(1, 1, 1, 0.08)
+          Layout.topMargin: 2
+          Layout.bottomMargin: 2
+        }
+
+        Repeater {
+          model: {
+            if (!Quickshell.screens || Quickshell.screens.length <= 1) return []
+            var list = []
+            for (var i = 0; i < Quickshell.screens.length; i++) {
+              var s = Quickshell.screens[i]
+              if (s && s.name && s.name !== widgetCardRoot.monitorName) {
+                list.push({ name: s.name })
+              }
+            }
+            return list
+          }
+
+          Rectangle {
+            required property var modelData
+            Layout.fillWidth: true
+            implicitHeight: 28
+            radius: 6
+            color: moveMonMouse.containsMouse ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.25) : "transparent"
+
+            RowLayout {
+              anchors.fill: parent
+              anchors.leftMargin: Style.space(10)
+              anchors.rightMargin: Style.space(10)
+              spacing: Style.space(8)
+
+              Text {
+                text: "\uf108"
+                font.family: Style.font.family
+                font.pixelSize: 11
+                color: Color.accent
+              }
+
+              Text {
+                Layout.fillWidth: true
+                text: "Move to " + modelData.name
+                font.family: Style.font.family
+                font.pixelSize: 11
+                font.weight: Font.Bold
+                color: Color.foreground
+                elide: Text.ElideRight
+              }
+            }
+
+            MouseArea {
+              id: moveMonMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: {
+                widgetCardRoot.contextMenuOpen = false
+                if (rootRef && rootRef.moveToMonitor) {
+                  rootRef.moveToMonitor(widgetCardRoot.widgetId, widgetCardRoot.monitorName, modelData.name)
+                }
               }
             }
           }

@@ -10,7 +10,7 @@ STATE_DIR = os.path.expanduser('~/.local/state/omarchy')
 STATE_FILE = os.path.join(STATE_DIR, 'dagyr.desktop-widgets.json')
 LEGACY_CONFIG = os.path.expanduser('~/.config/omarchy/plugins/dagyr.desktop-widgets/settings.json')
 
-DEFAULT_ENABLED = ["clock", "gallery", "network", "media", "system"]
+DEFAULT_ENABLED = ["clock", "gallery", "coin_tracker", "network", "media", "system"]
 
 BUILTIN_MIGRATION = {
     "GitActivityWidget.qml": "git_activity",
@@ -19,20 +19,28 @@ BUILTIN_MIGRATION = {
     "QuickNotesWidget.qml": "quick_notes",
     "WeatherWidget.qml": "weather",
     "AppLauncherWidget.qml": "app_launcher",
-    "FolderViewWidget.qml": "folder_view"
+    "FolderViewWidget.qml": "folder_view",
+    "BtcTrackerWidget.qml": "coin_tracker",
+    "CoinTrackerWidget.qml": "coin_tracker"
 }
 
 BUILTIN_PROFILES = {
     "Default": {
         "name": "Default",
-        "description": "Standard balanced desktop setup with clock, photo deck, network sparklines, media, and system specs.",
-        "enabled_widgets": ["clock", "gallery", "network", "media", "system"],
+        "description": "Standard balanced desktop setup with clock, photo deck, coin tracker, network sparklines, media, and system specs.",
+        "enabled_widgets": ["clock", "gallery", "coin_tracker", "network", "media", "system"],
         "positions": {
             "clock": {"x": 700, "y": 20},
             "gallery": {"x": 20, "y": 40, "w": 360, "h": 220},
+            "coin_tracker": {"x": 20, "y": 280, "w": 350, "h": 245},
             "network": {"x": 1520, "y": 40, "w": 360, "h": 180},
             "media": {"x": 1520, "y": 240, "w": 360, "h": 120},
             "system": {"x": 1520, "y": 860, "w": 360, "h": 200}
+        },
+        "widget_settings": {
+            "clock": {
+                "showGreeting": True
+            }
         }
     },
     "Minimal": {
@@ -42,6 +50,11 @@ BUILTIN_PROFILES = {
         "positions": {
             "clock": {"x": 700, "y": 40},
             "weather": {"x": 790, "y": 240, "w": 340, "h": 250}
+        },
+        "widget_settings": {
+            "clock": {
+                "showGreeting": False
+            }
         }
     },
     "Productivity": {
@@ -54,18 +67,24 @@ BUILTIN_PROFILES = {
             "pomodoro": {"x": 40, "y": 640, "w": 320, "h": 420},
             "git_activity": {"x": 380, "y": 560, "w": 360, "h": 500},
             "folder_view": {"x": 760, "y": 680, "w": 340, "h": 380}
+        },
+        "widget_settings": {
+            "clock": {
+                "showGreeting": True
+            }
         }
     },
     "Full Dashboard": {
         "name": "Full Dashboard",
         "description": "Comprehensive command center featuring all desktop widgets arranged across the screen.",
-        "enabled_widgets": ["clock", "gallery", "weather", "quick_notes", "pomodoro", "git_activity", "folder_view", "app_launcher", "network", "media", "hardware_telemetry", "system"],
+        "enabled_widgets": ["clock", "gallery", "weather", "coin_tracker", "quick_notes", "pomodoro", "git_activity", "folder_view", "app_launcher", "network", "media", "hardware_telemetry", "system"],
         "positions": {
             "clock": {"x": 700, "y": 20},
             "gallery": {"x": 20, "y": 40, "w": 360, "h": 220},
             "quick_notes": {"x": 40, "y": 280, "w": 320, "h": 340},
             "pomodoro": {"x": 40, "y": 640, "w": 320, "h": 420},
             "weather": {"x": 400, "y": 140, "w": 340, "h": 250},
+            "coin_tracker": {"x": 760, "y": 140, "w": 350, "h": 245},
             "git_activity": {"x": 380, "y": 560, "w": 360, "h": 500},
             "folder_view": {"x": 760, "y": 680, "w": 340, "h": 380},
             "app_launcher": {"x": 1140, "y": 640, "w": 360, "h": 420},
@@ -73,6 +92,11 @@ BUILTIN_PROFILES = {
             "media": {"x": 1520, "y": 240, "w": 360, "h": 120},
             "hardware_telemetry": {"x": 1520, "y": 380, "w": 360, "h": 460},
             "system": {"x": 1520, "y": 860, "w": 360, "h": 200}
+        },
+        "widget_settings": {
+            "clock": {
+                "showGreeting": True
+            }
         }
     },
     "Gaming": {
@@ -236,6 +260,50 @@ def migrate_custom_builtins(data):
         else:
             new_customs.append(c)
 
+    # Migrate legacy btc_tracker to coin_tracker
+    if 'btc_tracker' in positions or 'btc_tracker' in enabled or ('widget_settings' in data and 'btc_tracker' in data['widget_settings']):
+        changed = True
+        if 'btc_tracker' in positions:
+            if 'coin_tracker' not in positions:
+                positions['coin_tracker'] = positions['btc_tracker']
+            del positions['btc_tracker']
+        enabled = ['coin_tracker' if x == 'btc_tracker' else x for x in enabled]
+        if 'widget_settings' in data and 'btc_tracker' in data['widget_settings']:
+            if 'coin_tracker' not in data['widget_settings']:
+                data['widget_settings']['coin_tracker'] = data['widget_settings']['btc_tracker']
+            del data['widget_settings']['btc_tracker']
+        if 'monitor_positions' in data and isinstance(data['monitor_positions'], dict):
+            for m, mpos in data['monitor_positions'].items():
+                if isinstance(mpos, dict) and 'btc_tracker' in mpos:
+                    if 'coin_tracker' not in mpos:
+                        mpos['coin_tracker'] = mpos['btc_tracker']
+                    del mpos['btc_tracker']
+        if 'saved_layout' in data and isinstance(data['saved_layout'], dict):
+            sl = data['saved_layout']
+            if 'positions' in sl and 'btc_tracker' in sl['positions']:
+                if 'coin_tracker' not in sl['positions']:
+                    sl['positions']['coin_tracker'] = sl['positions']['btc_tracker']
+                del sl['positions']['btc_tracker']
+            if 'enabled_widgets' in sl and 'btc_tracker' in sl['enabled_widgets']:
+                sl['enabled_widgets'] = ['coin_tracker' if x == 'btc_tracker' else x for x in sl['enabled_widgets']]
+            if 'widget_settings' in sl and 'btc_tracker' in sl['widget_settings']:
+                if 'coin_tracker' not in sl['widget_settings']:
+                    sl['widget_settings']['coin_tracker'] = sl['widget_settings']['btc_tracker']
+                del sl['widget_settings']['btc_tracker']
+        if 'monitor_enabled_widgets' in data and isinstance(data['monitor_enabled_widgets'], dict):
+            for m, mew in data['monitor_enabled_widgets'].items():
+                if isinstance(mew, list):
+                    data['monitor_enabled_widgets'][m] = ['coin_tracker' if x == 'btc_tracker' else x for x in mew]
+        if 'layout_profiles' in data and isinstance(data['layout_profiles'], dict):
+            for pname, pdata in data['layout_profiles'].items():
+                if isinstance(pdata, dict):
+                    if 'enabled_widgets' in pdata and isinstance(pdata['enabled_widgets'], list):
+                        pdata['enabled_widgets'] = ['coin_tracker' if x == 'btc_tracker' else x for x in pdata['enabled_widgets']]
+                    if 'positions' in pdata and isinstance(pdata['positions'], dict) and 'btc_tracker' in pdata['positions']:
+                        if 'coin_tracker' not in pdata['positions']:
+                            pdata['positions']['coin_tracker'] = pdata['positions']['btc_tracker']
+                        del pdata['positions']['btc_tracker']
+
     if changed:
         dedup_enabled = []
         for e in enabled:
@@ -286,6 +354,13 @@ def load_settings():
     for prof_name, prof_data in BUILTIN_PROFILES.items():
         if prof_name not in data['layout_profiles']:
             data['layout_profiles'][prof_name] = copy.deepcopy(prof_data)
+        elif 'widget_settings' in prof_data:
+            if 'widget_settings' not in data['layout_profiles'][prof_name] or not isinstance(data['layout_profiles'][prof_name]['widget_settings'], dict):
+                data['layout_profiles'][prof_name]['widget_settings'] = {}
+            for wid, wsets in prof_data['widget_settings'].items():
+                if wid not in data['layout_profiles'][prof_name]['widget_settings'] or not isinstance(data['layout_profiles'][prof_name]['widget_settings'][wid], dict):
+                    data['layout_profiles'][prof_name]['widget_settings'][wid] = {}
+                data['layout_profiles'][prof_name]['widget_settings'][wid].update(wsets)
 
     if 'active_profile' not in data or not data['active_profile']:
         data['active_profile'] = "Default"
@@ -298,9 +373,11 @@ def load_settings():
             if k not in data['appearance']:
                 data['appearance'][k] = v
 
-    # Initialize multi-monitor positions
+    # Initialize multi-monitor positions and enabled widgets
     if 'monitor_positions' not in data or not isinstance(data['monitor_positions'], dict):
         data['monitor_positions'] = {}
+    if 'monitor_enabled_widgets' not in data or not isinstance(data['monitor_enabled_widgets'], dict):
+        data['monitor_enabled_widgets'] = {}
 
     return migrate_custom_builtins(data)
 
@@ -360,14 +437,72 @@ def main():
     elif action == 'toggle_widget' and len(sys.argv) >= 4:
         widget_id = sys.argv[2]
         enable = sys.argv[3].lower() in ('true', '1', 'yes')
+        monitor = sys.argv[4] if len(sys.argv) >= 5 else None
+
+        if monitor:
+            if 'monitor_enabled_widgets' not in settings or not isinstance(settings['monitor_enabled_widgets'], dict):
+                settings['monitor_enabled_widgets'] = {}
+            if monitor not in settings['monitor_enabled_widgets']:
+                settings['monitor_enabled_widgets'][monitor] = list(settings.get('enabled_widgets', DEFAULT_ENABLED))
+            m_set = set(settings['monitor_enabled_widgets'][monitor])
+            if enable:
+                m_set.add(widget_id)
+            else:
+                m_set.discard(widget_id)
+            settings['monitor_enabled_widgets'][monitor] = list(m_set)
+
         enabled = set(settings.get('enabled_widgets', []))
         if enable:
             enabled.add(widget_id)
-        else:
+        elif not monitor:
             enabled.discard(widget_id)
         settings['enabled_widgets'] = list(enabled)
+
         save_settings(settings)
-        print(json.dumps({"status": "toggled", "enabled_widgets": settings['enabled_widgets']}))
+        print(json.dumps({
+            "status": "toggled",
+            "enabled_widgets": settings['enabled_widgets'],
+            "monitor_enabled_widgets": settings.get('monitor_enabled_widgets', {})
+        }))
+    elif action == 'move_to_monitor' and len(sys.argv) >= 5:
+        widget_id = sys.argv[2]
+        from_mon = sys.argv[3]
+        to_mon = sys.argv[4]
+
+        if 'monitor_enabled_widgets' not in settings or not isinstance(settings['monitor_enabled_widgets'], dict):
+            settings['monitor_enabled_widgets'] = {}
+
+        if from_mon in settings['monitor_enabled_widgets']:
+            from_set = set(settings['monitor_enabled_widgets'][from_mon])
+            from_set.discard(widget_id)
+            settings['monitor_enabled_widgets'][from_mon] = list(from_set)
+
+        if to_mon not in settings['monitor_enabled_widgets']:
+            settings['monitor_enabled_widgets'][to_mon] = []
+        to_set = set(settings['monitor_enabled_widgets'][to_mon])
+        to_set.add(widget_id)
+        settings['monitor_enabled_widgets'][to_mon] = list(to_set)
+
+        if 'monitor_positions' not in settings or not isinstance(settings['monitor_positions'], dict):
+            settings['monitor_positions'] = {}
+        if to_mon not in settings['monitor_positions']:
+            settings['monitor_positions'][to_mon] = {}
+
+        if from_mon in settings['monitor_positions'] and widget_id in settings['monitor_positions'][from_mon]:
+            settings['monitor_positions'][to_mon][widget_id] = copy.deepcopy(settings['monitor_positions'][from_mon][widget_id])
+            del settings['monitor_positions'][from_mon][widget_id]
+        elif widget_id in settings.get('positions', {}):
+            settings['monitor_positions'][to_mon][widget_id] = copy.deepcopy(settings['positions'][widget_id])
+
+        save_settings(settings)
+        print(json.dumps({
+            "status": "moved_to_monitor",
+            "widget_id": widget_id,
+            "from_monitor": from_mon,
+            "to_monitor": to_mon,
+            "monitor_enabled_widgets": settings['monitor_enabled_widgets'],
+            "monitor_positions": settings['monitor_positions']
+        }))
     elif action == 'save_setting' and len(sys.argv) >= 5:
         widget_id = sys.argv[2]
         key = sys.argv[3]
@@ -434,15 +569,30 @@ def main():
             settings['active_profile'] = target_name
             settings['positions'] = copy.deepcopy(prof.get('positions', {}))
             settings['enabled_widgets'] = list(prof.get('enabled_widgets', DEFAULT_ENABLED))
-            if 'widget_settings' in prof:
-                settings['widget_settings'] = copy.deepcopy(prof.get('widget_settings', {}))
+            if 'widget_settings' in prof and isinstance(prof['widget_settings'], dict):
+                if 'widget_settings' not in settings or not isinstance(settings['widget_settings'], dict):
+                    settings['widget_settings'] = {}
+                for wid, wsets in prof['widget_settings'].items():
+                    if wid not in settings['widget_settings'] or not isinstance(settings['widget_settings'][wid], dict):
+                        settings['widget_settings'][wid] = {}
+                    settings['widget_settings'][wid].update(copy.deepcopy(wsets))
+            if 'monitor_enabled_widgets' in prof and isinstance(prof['monitor_enabled_widgets'], dict):
+                settings['monitor_enabled_widgets'] = copy.deepcopy(prof['monitor_enabled_widgets'])
+            else:
+                settings['monitor_enabled_widgets'] = {}
+            if 'monitor_positions' in prof and isinstance(prof['monitor_positions'], dict):
+                settings['monitor_positions'] = copy.deepcopy(prof['monitor_positions'])
+            else:
+                settings['monitor_positions'] = {}
             save_settings(settings)
             print(json.dumps({
                 "status": "profile_switched",
                 "active_profile": target_name,
                 "positions": settings['positions'],
                 "enabled_widgets": settings['enabled_widgets'],
-                "widget_settings": settings.get('widget_settings', {})
+                "widget_settings": settings.get('widget_settings', {}),
+                "monitor_positions": settings['monitor_positions'],
+                "monitor_enabled_widgets": settings['monitor_enabled_widgets']
             }))
         else:
             print(json.dumps({"status": "error", "error": f"Profile '{target_name}' not found"}))
@@ -454,7 +604,9 @@ def main():
             "description": f"Custom layout profile saved on {target_name}",
             "positions": copy.deepcopy(settings.get('positions', {})),
             "enabled_widgets": list(settings.get('enabled_widgets', DEFAULT_ENABLED)),
-            "widget_settings": copy.deepcopy(settings.get('widget_settings', {}))
+            "widget_settings": copy.deepcopy(settings.get('widget_settings', {})),
+            "monitor_positions": copy.deepcopy(settings.get('monitor_positions', {})),
+            "monitor_enabled_widgets": copy.deepcopy(settings.get('monitor_enabled_widgets', {}))
         }
         settings['layout_profiles'] = profs
         settings['active_profile'] = target_name
@@ -473,7 +625,9 @@ def main():
                 "description": f"Custom layout preset '{name}'",
                 "positions": copy.deepcopy(settings.get('positions', {})),
                 "enabled_widgets": list(settings.get('enabled_widgets', DEFAULT_ENABLED)),
-                "widget_settings": copy.deepcopy(settings.get('widget_settings', {}))
+                "widget_settings": copy.deepcopy(settings.get('widget_settings', {})),
+                "monitor_positions": copy.deepcopy(settings.get('monitor_positions', {})),
+                "monitor_enabled_widgets": copy.deepcopy(settings.get('monitor_enabled_widgets', {}))
             }
             settings['layout_profiles'] = profs
             settings['active_profile'] = name
@@ -549,7 +703,9 @@ def main():
                     "description": prof.get('description', f"Imported from {os.path.basename(src_path)}"),
                     "positions": copy.deepcopy(prof.get('positions', {})),
                     "enabled_widgets": list(prof.get('enabled_widgets', DEFAULT_ENABLED)),
-                    "widget_settings": copy.deepcopy(prof.get('widget_settings', {}))
+                    "widget_settings": copy.deepcopy(prof.get('widget_settings', {})),
+                    "monitor_positions": copy.deepcopy(prof.get('monitor_positions', {})),
+                    "monitor_enabled_widgets": copy.deepcopy(prof.get('monitor_enabled_widgets', {}))
                 }
                 settings['layout_profiles'] = profs
                 settings['active_profile'] = name
@@ -557,13 +713,17 @@ def main():
                 settings['enabled_widgets'] = list(profs[name]['enabled_widgets'])
                 if 'widget_settings' in profs[name]:
                     settings['widget_settings'] = copy.deepcopy(profs[name]['widget_settings'])
+                settings['monitor_positions'] = copy.deepcopy(profs[name]['monitor_positions'])
+                settings['monitor_enabled_widgets'] = copy.deepcopy(profs[name]['monitor_enabled_widgets'])
                 save_settings(settings)
                 print(json.dumps({
                     "status": "imported",
                     "name": name,
                     "path": src_path,
                     "positions": settings['positions'],
-                    "enabled_widgets": settings['enabled_widgets']
+                    "enabled_widgets": settings['enabled_widgets'],
+                    "monitor_positions": settings['monitor_positions'],
+                    "monitor_enabled_widgets": settings['monitor_enabled_widgets']
                 }))
             except Exception as e:
                 print(json.dumps({"status": "error", "error": str(e)}))
@@ -707,7 +867,8 @@ def main():
             "active_profile": active,
             "profiles": profile_list,
             "appearance": settings.get('appearance', DEFAULT_APPEARANCE),
-            "monitor_positions": settings.get('monitor_positions', {})
+            "monitor_positions": settings.get('monitor_positions', {}),
+            "monitor_enabled_widgets": settings.get('monitor_enabled_widgets', {})
         }))
 
 if __name__ == '__main__':

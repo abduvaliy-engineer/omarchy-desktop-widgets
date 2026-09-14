@@ -19,7 +19,7 @@ Item {
   // 📍 Desktop Widgets State, Positions, Profiles, Registry & Persistence
   // ---------------------------------------------------------------------------
   property var widgetPositions: ({})
-  property var enabledWidgets: ["clock", "gallery", "network", "media", "system"]
+  property var enabledWidgets: ["clock", "gallery", "coin_tracker", "network", "media", "system"]
   property var widgetSettings: ({})
   property bool settingsReady: false
   property real screenWidth: 1920
@@ -31,6 +31,7 @@ Item {
   property bool manualHide: false
   property bool overlayActive: false
   property bool keyboardFocusRequested: false
+  readonly property string autoHideMode: (root.appearance && root.appearance.auto_hide_mode) ? root.appearance.auto_hide_mode : "tiled"
   property bool menuOpenRequested: false
   property int activeDragCount: 0
   readonly property bool isAnyWidgetDragging: activeDragCount > 0
@@ -72,6 +73,7 @@ Item {
     remapTimer.restart()
   }
   property var monitorPositions: ({})
+  property var monitorEnabledWidgets: ({})
   property string profileNoticeText: ""
   property bool profileNoticeVisible: false
 
@@ -88,8 +90,14 @@ Item {
     profileNoticeTimer.restart()
   }
 
+  property bool wasManualHiddenBeforeOverlay: false
+
   function closeOverlay() {
     overlayActive = false
+    if (root.autoHideMode === "manual" && root.wasManualHiddenBeforeOverlay) {
+      root.manualHide = true
+    }
+    root.wasManualHiddenBeforeOverlay = false
   }
 
   property real activeDragCenterX: -1
@@ -147,6 +155,7 @@ Item {
           if (Array.isArray(res.profiles)) root.layoutProfiles = res.profiles
           if (res.appearance) root.appearance = res.appearance
           if (res.monitor_positions) root.monitorPositions = res.monitor_positions
+          if (res.monitor_enabled_widgets) root.monitorEnabledWidgets = res.monitor_enabled_widgets
         } catch (e) {}
       }
     }
@@ -200,16 +209,83 @@ Item {
     Quickshell.execDetached([root.manageScriptPath, "save_widget_settings", id, JSON.stringify(ws[id])])
   }
 
-  function toggleWidgetEnabled(id, enable) {
-    var list = root.enabledWidgets.slice()
-    var idx = list.indexOf(id)
-    if (enable && idx === -1) {
-      list.push(id)
-    } else if (!enable && idx !== -1) {
-      list.splice(idx, 1)
+  function isWidgetActiveOnMonitor(id, mName) {
+    var targetId = (id === "btc_tracker") ? "coin_tracker" : id
+    var screens = Quickshell.screens
+    var isMulti = (screens && screens.length > 1)
+
+    // In multi-monitor mode, if this monitor has an explicit enabled list, honor it
+    if (isMulti && mName && root.monitorEnabledWidgets && root.monitorEnabledWidgets[mName] !== undefined) {
+      var list = root.monitorEnabledWidgets[mName]
+      return list.indexOf(targetId) !== -1 || (targetId === "coin_tracker" && list.indexOf("btc_tracker") !== -1)
     }
-    root.enabledWidgets = list
-    Quickshell.execDetached([root.manageScriptPath, "toggle_widget", id, enable ? "true" : "false"])
+
+    // Otherwise (single screen or primary screen on standard preset), use the active preset's root.enabledWidgets!
+    var isFirstScreen = (!screens || screens.length <= 1 || (screens[0] && screens[0].name === mName))
+    if (isFirstScreen) {
+      return root.enabledWidgets.indexOf(targetId) !== -1 || (targetId === "coin_tracker" && root.enabledWidgets.indexOf("btc_tracker") !== -1)
+    }
+    return false
+  }
+
+  function toggleWidgetEnabled(id, enable, monitorName) {
+    var targetId = (id === "btc_tracker") ? "coin_tracker" : id
+    var screens = Quickshell.screens
+    var isMulti = (screens && screens.length > 1)
+    var isFirstScreen = (!screens || screens.length <= 1 || (screens[0] && screens[0].name === monitorName))
+
+    if (isMulti && monitorName) {
+      var mew = Object.assign({}, root.monitorEnabledWidgets)
+      if (!mew[monitorName]) {
+        mew[monitorName] = isFirstScreen ? root.enabledWidgets.slice() : []
+      }
+      var mList = mew[monitorName].slice()
+      var mIdx = mList.indexOf(targetId)
+      if (enable && mIdx === -1) mList.push(targetId)
+      else if (!enable && mIdx !== -1) mList.splice(mIdx, 1)
+      mew[monitorName] = mList
+      root.monitorEnabledWidgets = mew
+
+      if (isFirstScreen) {
+        var list = root.enabledWidgets.slice()
+        var idx = list.indexOf(targetId)
+        if (enable && idx === -1) list.push(targetId)
+        else if (!enable && idx !== -1) list.splice(idx, 1)
+        root.enabledWidgets = list
+      }
+
+      Quickshell.execDetached([root.manageScriptPath, "toggle_widget", targetId, enable ? "true" : "false", monitorName])
+    } else {
+      var sList = root.enabledWidgets.slice()
+      var sIdx = sList.indexOf(targetId)
+      if (enable && sIdx === -1) sList.push(targetId)
+      else if (!enable && sIdx !== -1) sList.splice(sIdx, 1)
+      root.enabledWidgets = sList
+      Quickshell.execDetached([root.manageScriptPath, "toggle_widget", targetId, enable ? "true" : "false"])
+    }
+  }
+
+  function moveToMonitor(id, fromMon, toMon) {
+    var targetId = (id === "btc_tracker") ? "coin_tracker" : id
+    var mew = Object.assign({}, root.monitorEnabledWidgets)
+
+    if (!mew[fromMon]) {
+      var screens = Quickshell.screens
+      var isFirst = (!screens || screens.length <= 1 || (screens[0] && screens[0].name === fromMon))
+      mew[fromMon] = isFirst ? root.enabledWidgets.slice() : []
+    }
+    var fromList = mew[fromMon].slice()
+    var fIdx = fromList.indexOf(targetId)
+    if (fIdx !== -1) fromList.splice(fIdx, 1)
+    mew[fromMon] = fromList
+
+    if (!mew[toMon]) mew[toMon] = []
+    var toList = mew[toMon].slice()
+    if (toList.indexOf(targetId) === -1) toList.push(targetId)
+    mew[toMon] = toList
+
+    root.monitorEnabledWidgets = mew
+    Quickshell.execDetached([root.manageScriptPath, "move_to_monitor", targetId, fromMon, toMon])
   }
 
   function saveCurrentLayout() {
@@ -280,6 +356,8 @@ Item {
             if (res.positions) root.widgetPositions = res.positions
             if (Array.isArray(res.enabled_widgets)) root.enabledWidgets = res.enabled_widgets
             if (res.widget_settings) root.widgetSettings = res.widget_settings
+            root.monitorPositions = (res.monitor_positions && typeof res.monitor_positions === "object") ? res.monitor_positions : ({})
+            root.monitorEnabledWidgets = (res.monitor_enabled_widgets && typeof res.monitor_enabled_widgets === "object") ? res.monitor_enabled_widgets : ({})
             root.showProfileNotice("Switched to '" + res.active_profile + "' preset")
             if (!posProc.running) posProc.running = true
           }
@@ -418,7 +496,9 @@ Item {
     if (root.overlayActive) {
       root.closeOverlay()
     }
-    root.manualHide = false
+    if (root.autoHideMode !== "manual") {
+      root.manualHide = false
+    }
   }
 
   function isMediaPlaying() {
@@ -438,6 +518,7 @@ Item {
       if (root.isMediaPlaying()) return "media_inhibited"
     }
 
+    root.wasManualHiddenBeforeOverlay = root.manualHide
     root.overlayActive = true
     return "activated"
   }
@@ -459,8 +540,9 @@ Item {
       root.closeOverlay()
     } else {
       var ws = (typeof Hyprland !== "undefined" && Hyprland.focusedWorkspace) ? Hyprland.focusedWorkspace : null
-      var hasWindows = ws && ws.toplevels && ws.toplevels.values.length > 0
+      var hasWindows = !!((ws && ws.toplevels && ws.toplevels.values.length > 0) || (ws && ws.windows > 0))
       if (hasWindows) {
+        root.wasManualHiddenBeforeOverlay = root.manualHide
         root.overlayActive = true
         root.manualHide = false
       } else {
@@ -632,15 +714,17 @@ Item {
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.namespace: "omarchy-desktop-widgets"
-        WlrLayershell.layer: (root.overlayActive || root.preferencesOpen) ? WlrLayer.Overlay : WlrLayer.Bottom
-        WlrLayershell.keyboardFocus: (root.overlayActive || root.preferencesOpen) ? WlrKeyboardFocus.OnDemand : ((!desktopWindow.hasOpenWindows && (root.selectorOpen || root.keyboardFocusRequested)) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None)
+        WlrLayershell.layer: (root.overlayActive || root.preferencesOpen || root.keyboardFocusRequested) ? WlrLayer.Overlay : WlrLayer.Bottom
+        WlrLayershell.keyboardFocus: (root.overlayActive || root.preferencesOpen || root.keyboardFocusRequested) ? WlrKeyboardFocus.OnDemand : ((!desktopWindow.hasOpenWindows && root.selectorOpen) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None)
 
         Shortcut {
           sequence: "Escape"
-          enabled: root.overlayActive || root.preferencesOpen
+          enabled: root.overlayActive || root.preferencesOpen || root.keyboardFocusRequested || desktopContextMenu.isOpen
           onActivated: {
+            if (desktopContextMenu.isOpen) desktopContextMenu.isOpen = false
             if (root.preferencesOpen) root.preferencesOpen = false
             if (root.overlayActive) root.closeOverlay()
+            if (root.keyboardFocusRequested) root.keyboardFocusRequested = false
           }
         }
 
@@ -745,8 +829,8 @@ Item {
           }
 
           if (typeof desktopContextMenu !== "undefined" && desktopContextMenu && desktopContextMenu.isOpen && desktopContextMenu.visible) {
-            if (localX >= desktopContextMenu.x && localX <= desktopContextMenu.x + desktopContextMenu.width &&
-                localY >= desktopContextMenu.y && localY <= desktopContextMenu.y + desktopContextMenu.height) {
+            if (mouseX >= desktopContextMenu.x && mouseX <= desktopContextMenu.x + desktopContextMenu.width &&
+                mouseY >= desktopContextMenu.y && mouseY <= desktopContextMenu.y + desktopContextMenu.height) {
               return true
             }
           }
@@ -772,17 +856,18 @@ Item {
             if (desktopWindow.isPointOverWidget(mouse.x, mouse.y)) {
               return
             }
-            if (root.overlayActive) {
-              root.closeOverlay()
-              return
-            }
-            root.menuOpenRequested = false
-            if (mouse.button === Qt.RightButton) {
-              desktopContextMenu.x = Math.max(16, Math.min(mouse.x, desktopWindow.width - 256))
-              desktopContextMenu.y = Math.max(16, Math.min(mouse.y, desktopWindow.height - 240))
-              desktopContextMenu.isOpen = true
-            } else {
+            if (mouse.button === Qt.LeftButton) {
+              if (root.overlayActive) {
+                root.closeOverlay()
+                return
+              }
               desktopContextMenu.isOpen = false
+            } else if (mouse.button === Qt.RightButton) {
+              root.menuOpenRequested = false
+              var menuH = desktopContextMenu.implicitHeight > 0 ? desktopContextMenu.implicitHeight : 380
+              desktopContextMenu.x = Math.max(16, Math.min(mouse.x, desktopWindow.width - 256))
+              desktopContextMenu.y = Math.max(16, Math.min(mouse.y, desktopWindow.height - menuH - 16))
+              desktopContextMenu.isOpen = true
             }
           }
         }
@@ -1116,7 +1201,7 @@ Item {
             Loader {
               id: widgetLoader
               required property var modelData
-              active: root.enabledWidgets.indexOf(modelData.id) !== -1
+              active: root.isWidgetActiveOnMonitor(modelData.id, desktopWindow.monitorName)
               source: modelData.componentUrl
               z: 10
 
@@ -1125,12 +1210,22 @@ Item {
               property bool isDragging: item && item.isDragging ? true : false
 
               readonly property string monitorName: desktopWindow.monitorName
-              readonly property var monitorPos: (root.monitorPositions && monitorName && root.monitorPositions[monitorName] && root.monitorPositions[monitorName][modelData.id]) ? root.monitorPositions[monitorName][modelData.id] : null
-              readonly property var savedPos: monitorPos ? monitorPos : ((root.widgetPositions && root.widgetPositions[modelData.id]) ? root.widgetPositions[modelData.id] : null)
-              readonly property real targetX: (savedPos && savedPos.x !== undefined) ? savedPos.x : defaultX
-              readonly property real targetY: (savedPos && savedPos.y !== undefined) ? savedPos.y : defaultY
+              readonly property bool isMultiScreen: Quickshell.screens && Quickshell.screens.length > 1
+              readonly property var monitorPos: (isMultiScreen && root.monitorPositions && monitorName && root.monitorPositions[monitorName] && (root.monitorPositions[monitorName][modelData.id] || (modelData.id === "coin_tracker" ? root.monitorPositions[monitorName]["btc_tracker"] : null))) ? (root.monitorPositions[monitorName][modelData.id] || root.monitorPositions[monitorName]["btc_tracker"]) : null
+              readonly property var savedPos: monitorPos ? monitorPos : ((root.widgetPositions && (root.widgetPositions[modelData.id] || (modelData.id === "coin_tracker" ? root.widgetPositions["btc_tracker"] : null))) ? (root.widgetPositions[modelData.id] || root.widgetPositions["btc_tracker"]) : null)
               readonly property real savedWidth: (savedPos && savedPos.w !== undefined) ? savedPos.w : 0
               readonly property real savedHeight: (savedPos && savedPos.h !== undefined) ? savedPos.h : 0
+
+              readonly property real effectiveWidth: (item && item.width > 0) ? item.width : (savedWidth > 0 ? savedWidth : 320)
+              readonly property real effectiveHeight: (item && item.height > 0) ? item.height : (savedHeight > 0 ? savedHeight : 240)
+              readonly property real maxX: Math.max(10, desktopWindow.width - effectiveWidth - 10)
+              readonly property real maxY: Math.max(10, desktopWindow.height - effectiveHeight - 10)
+
+              readonly property real rawX: (savedPos && savedPos.x !== undefined) ? savedPos.x : defaultX
+              readonly property real rawY: (savedPos && savedPos.y !== undefined) ? savedPos.y : defaultY
+
+              readonly property real targetX: (desktopWindow.width > 0) ? Math.max(10, Math.min(maxX, rawX)) : rawX
+              readonly property real targetY: (desktopWindow.height > 0) ? Math.max(10, Math.min(maxY, rawY)) : rawY
 
               onTargetXChanged: {
                 if (!widgetLoader.isDragging) widgetLoader.x = targetX
@@ -1155,6 +1250,8 @@ Item {
                   item.widgetId = modelData.id
                   item.loaderItem = widgetLoader
                   if ("monitorName" in item) item.monitorName = desktopWindow.monitorName
+                  if ("monitorWidth" in item) item.monitorWidth = desktopWindow.width
+                  if ("monitorHeight" in item) item.monitorHeight = desktopWindow.height
                   if (savedWidth > 0 && item.resizable) {
                     item.width = savedWidth
                   }
@@ -1167,6 +1264,26 @@ Item {
                   }
                   if (typeof item.applySavedSettings === "function") {
                     item.applySavedSettings()
+                  }
+                }
+              }
+
+              Connections {
+                target: desktopWindow
+                function onWidthChanged() {
+                  if (widgetLoader.item && "monitorWidth" in widgetLoader.item) {
+                    widgetLoader.item.monitorWidth = desktopWindow.width
+                  }
+                  if (!widgetLoader.isDragging && desktopWindow.width > 0) {
+                    widgetLoader.x = targetX
+                  }
+                }
+                function onHeightChanged() {
+                  if (widgetLoader.item && "monitorHeight" in widgetLoader.item) {
+                    widgetLoader.item.monitorHeight = desktopWindow.height
+                  }
+                  if (!widgetLoader.isDragging && desktopWindow.height > 0) {
+                    widgetLoader.y = targetY
                   }
                 }
               }
@@ -1223,92 +1340,155 @@ Item {
             id: widgetSelector
             rootRef: root
             registry: widgetRegistry
+            targetMonitorName: desktopWindow.monitorName
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // 🖥️ Desktop Background Right-Click Context Menu
+        // -------------------------------------------------------------------
+        MouseArea {
+          anchors.fill: parent
+          z: 490
+          visible: desktopContextMenu.isOpen || root.menuOpenRequested
+          acceptedButtons: Qt.LeftButton | Qt.RightButton
+          onClicked: {
+            desktopContextMenu.isOpen = false
+            root.menuOpenRequested = false
+          }
+        }
+
+        Rectangle {
+          id: desktopContextMenu
+          property bool isOpen: false
+          x: 100
+          y: 100
+          visible: isOpen || root.menuOpenRequested
+          z: 500
+          width: 240
+          implicitHeight: desktopMenuCol.implicitHeight + Style.space(16)
+          radius: 14
+          color: Qt.rgba(18/255, 18/255, 24/255, 0.96)
+          border.color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.45)
+          border.width: 1.5
+
+          layer.enabled: true
+          layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: Qt.rgba(0, 0, 0, 0.85)
+            shadowBlur: 0.9
+            shadowVerticalOffset: 6
           }
 
-          // -------------------------------------------------------------------
-          // 🖥️ Desktop Background Right-Click Context Menu
-          // -------------------------------------------------------------------
-          MouseArea {
+          ColumnLayout {
+            id: desktopMenuCol
             anchors.fill: parent
-            z: 490
-            visible: desktopContextMenu.isOpen || root.menuOpenRequested
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-            onClicked: {
-              desktopContextMenu.isOpen = false
-              root.menuOpenRequested = false
-            }
-          }
+            anchors.margins: Style.space(8)
+            spacing: Style.space(4)
 
-          Rectangle {
-            id: desktopContextMenu
-            property bool isOpen: false
-            x: 100
-            y: 100
-            visible: (isOpen || root.menuOpenRequested) && widgetContainer.shouldShow
-            z: 500
-            width: 240
-            implicitHeight: desktopMenuCol.implicitHeight + Style.space(16)
-            radius: 14
-            color: Qt.rgba(18/255, 18/255, 24/255, 0.96)
-            border.color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.45)
-            border.width: 1.5
-
-            layer.enabled: true
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Qt.rgba(0, 0, 0, 0.85)
-              shadowBlur: 0.9
-              shadowVerticalOffset: 6
-            }
-
-            ColumnLayout {
-              id: desktopMenuCol
-              anchors.fill: parent
-              anchors.margins: Style.space(8)
-              spacing: Style.space(4)
-
-              // Header
-              RowLayout {
+            // Header
+            RowLayout {
+              Layout.fillWidth: true
+              Layout.leftMargin: 8
+              Layout.topMargin: 4
+              Layout.bottomMargin: 4
+              spacing: 8
+              Item {
+                Layout.preferredWidth: 18
+                Layout.preferredHeight: 18
+                Layout.alignment: Qt.AlignVCenter
+                Text {
+                  anchors.centerIn: parent
+                  text: "\uf108"
+                  font.family: Style.font.family
+                  font.pixelSize: 11
+                  color: Color.accent
+                }
+              }
+              Text {
                 Layout.fillWidth: true
-                Layout.leftMargin: 8
-                Layout.topMargin: 4
-                Layout.bottomMargin: 4
-                spacing: 8
+                Layout.alignment: Qt.AlignVCenter
+                text: "Desktop Controls"
+                font.family: Style.font.family
+                font.pixelSize: 11
+                font.weight: Font.Bold
+                color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.7)
+              }
+            }
+
+            Rectangle {
+              Layout.fillWidth: true
+              height: 1
+              color: Qt.rgba(1, 1, 1, 0.08)
+            }
+
+            // 1. Show / Hide Widgets
+            Rectangle {
+              Layout.fillWidth: true
+              height: 32
+              radius: 8
+              color: toggleWidgetsMouse.containsMouse ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.22) : "transparent"
+
+              RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
+                spacing: 10
+
                 Item {
                   Layout.preferredWidth: 18
                   Layout.preferredHeight: 18
                   Layout.alignment: Qt.AlignVCenter
+
                   Text {
                     anchors.centerIn: parent
-                    text: "\uf108"
+                    text: widgetContainer.shouldShow ? "\uf070" : "\uf06e"
                     font.family: Style.font.family
-                    font.pixelSize: 11
+                    font.pixelSize: 12
                     color: Color.accent
                   }
                 }
+
                 Text {
                   Layout.fillWidth: true
                   Layout.alignment: Qt.AlignVCenter
-                  text: "Desktop Controls"
+                  text: widgetContainer.shouldShow ? "Hide Widgets" : "Show Widgets"
                   font.family: Style.font.family
-                  font.pixelSize: 11
-                  font.weight: Font.Bold
-                  color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.7)
+                  font.pixelSize: 12
+                  font.weight: Font.DemiBold
+                  color: Color.foreground
+                  elide: Text.ElideRight
                 }
               }
 
-              Rectangle {
-                Layout.fillWidth: true
-                height: 1
-                color: Qt.rgba(1, 1, 1, 0.08)
+              MouseArea {
+                id: toggleWidgetsMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                  desktopContextMenu.isOpen = false
+                  if (widgetContainer.shouldShow) {
+                    root.manualHide = true
+                    if (root.overlayActive) {
+                      root.closeOverlay()
+                    }
+                  } else {
+                    root.manualHide = false
+                    if (desktopWindow.hasOpenWindows) {
+                      root.overlayActive = true
+                    }
+                  }
+                }
               }
+            }
 
-              // 1. Unlock / Lock Layout (Moved to top)
-              Rectangle {
-                Layout.fillWidth: true
-                height: 32
-                radius: 8
-                color: toggleLayoutMouse.containsMouse ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.22) : "transparent"
+            // 2. Unlock / Lock Layout (Moved to top)
+            Rectangle {
+              Layout.fillWidth: true
+              height: 32
+              radius: 8
+              color: toggleLayoutMouse.containsMouse ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.22) : "transparent"
 
                 RowLayout {
                   anchors.fill: parent
@@ -1871,7 +2051,6 @@ Item {
               }
             }
           }
-        }
 
         // ⚙️ Global Widget Preferences Dialog
         PreferencesDialog {

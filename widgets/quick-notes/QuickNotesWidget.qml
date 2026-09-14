@@ -42,6 +42,40 @@ WidgetCard {
   property string statusMessage: "Synced to notes.md"
   property bool feedbackActive: false
 
+  readonly property bool hasInputFocus: (
+    (typeof scratchpadEdit !== "undefined" && scratchpadEdit && scratchpadEdit.activeFocus) ||
+    (typeof taskInput !== "undefined" && taskInput && taskInput.activeFocus) ||
+    (typeof snipNameInput !== "undefined" && snipNameInput && snipNameInput.activeFocus) ||
+    (typeof snipCmdInput !== "undefined" && snipCmdInput && snipCmdInput.activeFocus) ||
+    (typeof snipDescInput !== "undefined" && snipDescInput && snipDescInput.activeFocus)
+  )
+
+  onHasInputFocusChanged: {
+    if (rootRef && "keyboardFocusRequested" in rootRef) {
+      rootRef.keyboardFocusRequested = hasInputFocus
+    }
+  }
+
+  Connections {
+    target: (rootRef && "keyboardFocusRequested" in rootRef) ? rootRef : null
+    ignoreUnknownSignals: true
+    function onKeyboardFocusRequestedChanged() {
+      if (rootRef && !rootRef.keyboardFocusRequested) {
+        if (typeof scratchpadEdit !== "undefined" && scratchpadEdit && scratchpadEdit.activeFocus) scratchpadEdit.focus = false
+        if (typeof taskInput !== "undefined" && taskInput && taskInput.activeFocus) taskInput.focus = false
+        if (typeof snipNameInput !== "undefined" && snipNameInput && snipNameInput.activeFocus) snipNameInput.focus = false
+        if (typeof snipCmdInput !== "undefined" && snipCmdInput && snipCmdInput.activeFocus) snipCmdInput.focus = false
+        if (typeof snipDescInput !== "undefined" && snipDescInput && snipDescInput.activeFocus) snipDescInput.focus = false
+      }
+    }
+  }
+
+  Component.onDestruction: {
+    if (rootRef && "keyboardFocusRequested" in rootRef && rootRef.keyboardFocusRequested) {
+      rootRef.keyboardFocusRequested = false
+    }
+  }
+
   readonly property int pendingCount: {
     var count = 0
     for (var i = 0; i < todosList.length; i++) {
@@ -108,6 +142,11 @@ WidgetCard {
     if (currentTab !== "COMMANDS") {
       closeSnippetEditor()
     }
+    if (typeof scratchpadEdit !== "undefined" && scratchpadEdit) scratchpadEdit.focus = false
+    if (typeof taskInput !== "undefined" && taskInput) taskInput.focus = false
+    if (typeof snipNameInput !== "undefined" && snipNameInput) snipNameInput.focus = false
+    if (typeof snipCmdInput !== "undefined" && snipCmdInput) snipCmdInput.focus = false
+    if (typeof snipDescInput !== "undefined" && snipDescInput) snipDescInput.focus = false
   }
 
   onSnippetEditorOpenChanged: {
@@ -913,6 +952,7 @@ WidgetCard {
       spacing: Style.space(8)
 
       Rectangle {
+        id: scratchpadBox
         Layout.fillWidth: true
         Layout.fillHeight: true
         radius: 12
@@ -920,22 +960,45 @@ WidgetCard {
         border.color: scratchpadEdit.activeFocus ? Color.accent : Qt.rgba(1, 1, 1, 0.1)
         border.width: 1
 
+        MouseArea {
+          id: scratchpadOuterClick
+          anchors.fill: parent
+          cursorShape: Qt.IBeamCursor
+          onClicked: {
+            scratchpadEdit.forceActiveFocus()
+            scratchpadEdit.cursorPosition = scratchpadEdit.text.length
+          }
+        }
+
         Flickable {
+          id: scratchpadFlickable
           anchors.fill: parent
           anchors.margins: Style.space(10)
           contentWidth: width
-          contentHeight: scratchpadEdit.implicitHeight
+          contentHeight: Math.max(height, scratchpadEdit.implicitHeight + 40)
           clip: true
+
+          MouseArea {
+            id: scratchpadBlankArea
+            width: scratchpadFlickable.contentWidth
+            height: Math.max(scratchpadFlickable.height, scratchpadFlickable.contentHeight)
+            cursorShape: Qt.IBeamCursor
+            onClicked: {
+              scratchpadEdit.forceActiveFocus()
+              scratchpadEdit.cursorPosition = scratchpadEdit.text.length
+            }
+          }
 
           TextEdit {
             id: scratchpadEdit
-            width: parent.width
+            width: scratchpadFlickable.width
             font.family: Style.font.family
             font.pixelSize: 12
             color: Color.foreground
             wrapMode: TextEdit.Wrap
             selectByMouse: true
             cursorVisible: activeFocus
+            activeFocusOnTab: true
 
             Text {
               anchors.fill: parent

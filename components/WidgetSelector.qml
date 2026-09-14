@@ -11,6 +11,7 @@ Item {
 
   property var rootRef: null
   property var registry: null
+  property string targetMonitorName: ""
   property string selectedCategory: "ALL"
   property string searchQuery: ""
 
@@ -92,7 +93,7 @@ Item {
         ColumnLayout {
           spacing: 0
           Text {
-            text: "Widget Marketplace & Selector"
+            text: selectorRoot.targetMonitorName ? ("Widget Marketplace (" + selectorRoot.targetMonitorName + ")") : "Widget Marketplace & Selector"
             font.family: Style.font.family
             font.pixelSize: 16
             font.weight: Font.Bold
@@ -176,59 +177,130 @@ Item {
       }
 
       // -----------------------------------------------------------------------
-      // 🔍 Filter Bar: Category Tabs
+      // 🔍 Search Bar (Placed above category buttons)
       // -----------------------------------------------------------------------
-      RowLayout {
+      Rectangle {
         Layout.fillWidth: true
-        spacing: Style.space(8)
+        height: 36
+        radius: 18
+        color: Qt.rgba(1, 1, 1, 0.08)
+        border.color: searchInput.activeFocus ? Color.accent : Qt.rgba(1, 1, 1, 0.12)
+        border.width: 1
 
-        Repeater {
-          model: [
-            { label: "All Widgets", cat: "ALL", icon: "\uf009" },
-            { label: "Glance", cat: "Glance", icon: "\uf017" },
-            { label: "Productivity", cat: "Productivity", icon: "\uf249" },
-            { label: "System", cat: "System", icon: "\uf2db" },
-            { label: "Dev", cat: "Dev", icon: "\uf1d3" },
-            { label: "Media", cat: "Media", icon: "\uf001" },
-            { label: "Custom", cat: "Custom", icon: "\uf12e" }
-          ]
+        RowLayout {
+          anchors.fill: parent
+          anchors.leftMargin: 14
+          anchors.rightMargin: 12
+          spacing: 8
 
-          Rectangle {
-            required property var modelData
-            implicitWidth: catTabRow.implicitWidth + 24
-            implicitHeight: 30
-            radius: 15
-            readonly property bool isSelected: selectorRoot.selectedCategory === modelData.cat
-            color: catMouse.containsMouse ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.25) : (isSelected ? Color.accent : Qt.rgba(1, 1, 1, 0.08))
-            border.color: isSelected ? Qt.rgba(255, 255, 255, 0.3) : Qt.rgba(1, 1, 1, 0.1)
-            border.width: 1
+          Text {
+            text: "\uf002"
+            font.family: Style.font.family
+            font.pixelSize: 13
+            color: searchInput.activeFocus ? Color.accent : Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.5)
+          }
 
-            RowLayout {
-              id: catTabRow
-              anchors.centerIn: parent
-              spacing: Style.space(6)
+          TextInput {
+            id: searchInput
+            Layout.fillWidth: true
+            font.family: Style.font.family
+            font.pixelSize: 12
+            color: Color.foreground
+            verticalAlignment: TextInput.AlignVCenter
+            selectByMouse: true
+            clip: true
+            onTextChanged: selectorRoot.searchQuery = text.trim().toLowerCase()
 
-              Text {
-                text: modelData.icon
-                font.family: Style.font.family
-                font.pixelSize: 11
-                color: isSelected ? Color.background : Color.accent
-              }
-              Text {
-                text: modelData.label
-                font.family: Style.font.family
-                font.pixelSize: 12
-                font.weight: isSelected ? Font.Bold : Font.Normal
-                color: isSelected ? Color.background : Color.foreground
-              }
-            }
-
-            MouseArea {
-              id: catMouse
+            Text {
               anchors.fill: parent
-              hoverEnabled: true
+              verticalAlignment: Text.AlignVCenter
+              text: "Search all widgets (e.g. coin tracker, clock, system, notes)..."
+              font.family: Style.font.family
+              font.pixelSize: 12
+              color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.4)
+              visible: !searchInput.text && !searchInput.activeFocus
+            }
+          }
+
+          Text {
+            visible: searchInput.text.length > 0
+            text: "\uf00d"
+            font.family: Style.font.family
+            font.pixelSize: 12
+            color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.6)
+            MouseArea {
+              anchors.fill: parent
               cursorShape: Qt.PointingHandCursor
-              onClicked: selectorRoot.selectedCategory = modelData.cat
+              onClicked: searchInput.text = ""
+            }
+          }
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // 🏷️ Category Filter Bar
+      // -----------------------------------------------------------------------
+      Flickable {
+        Layout.fillWidth: true
+        Layout.preferredHeight: 34
+        contentWidth: catRow.implicitWidth
+        contentHeight: height
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+
+        RowLayout {
+          id: catRow
+          spacing: Style.space(8)
+
+          Repeater {
+            model: [
+              { label: "All Widgets", cat: "ALL", icon: "\uf009" },
+              { label: "Finance", cat: "Finance", icon: "\uf51e" },
+              { label: "Glance", cat: "Glance", icon: "\uf017" },
+              { label: "Productivity", cat: "Productivity", icon: "\uf249" },
+              { label: "System", cat: "System", icon: "\uf2db" },
+              { label: "Dev", cat: "Dev", icon: "\uf1d3" },
+              { label: "Media", cat: "Media", icon: "\uf001" },
+              { label: "Custom", cat: "Custom", icon: "\uf12e" }
+            ]
+
+            Rectangle {
+              required property var modelData
+              implicitWidth: catTabRow.implicitWidth + 24
+              implicitHeight: 30
+              radius: 15
+              readonly property bool isSelected: selectorRoot.selectedCategory === modelData.cat
+              color: catMouse.containsMouse ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.25) : (isSelected ? Color.accent : Qt.rgba(1, 1, 1, 0.08))
+              border.color: isSelected ? Qt.rgba(255, 255, 255, 0.3) : Qt.rgba(1, 1, 1, 0.1)
+              border.width: 1
+
+              RowLayout {
+                id: catTabRow
+                anchors.centerIn: parent
+                spacing: Style.space(6)
+
+                Text {
+                  text: modelData.icon
+                  font.family: Style.font.family
+                  font.pixelSize: 11
+                  color: isSelected ? Color.background : Color.accent
+                }
+                Text {
+                  text: modelData.label
+                  font.family: Style.font.family
+                  font.pixelSize: 12
+                  font.weight: isSelected ? Font.Bold : Font.Normal
+                  color: isSelected ? Color.background : Color.foreground
+                }
+              }
+
+              MouseArea {
+                id: catMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: selectorRoot.selectedCategory = modelData.cat
+              }
             }
           }
         }
@@ -255,10 +327,22 @@ Item {
               if (!selectorRoot.registry) return []
               var all = selectorRoot.registry.allWidgets
               var filtered = []
+              var q = selectorRoot.searchQuery
               for (var i = 0; i < all.length; i++) {
                 var item = all[i]
                 if (selectorRoot.selectedCategory !== "ALL" && item.category !== selectorRoot.selectedCategory) {
                   continue
+                }
+                if (q !== "") {
+                  var name = (item.name || "").toLowerCase()
+                  var desc = (item.description || "").toLowerCase()
+                  var cat = (item.category || "").toLowerCase()
+                  var id = (item.id || "").toLowerCase()
+                  var isMatch = name.indexOf(q) !== -1 || desc.indexOf(q) !== -1 || cat.indexOf(q) !== -1 || id.indexOf(q) !== -1
+                  if (id === "coin_tracker" && (q.indexOf("btc") !== -1 || q.indexOf("crypto") !== -1 || q.indexOf("bitcoin") !== -1 || q.indexOf("eth") !== -1 || q.indexOf("coin") !== -1)) {
+                    isMatch = true
+                  }
+                  if (!isMatch) continue
                 }
                 filtered.push(item)
               }
@@ -275,7 +359,12 @@ Item {
               border.color: isAdded ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.4) : Qt.rgba(1, 1, 1, 0.1)
               border.width: 1
 
-              readonly property bool isAdded: (rootRef && rootRef.enabledWidgets && rootRef.enabledWidgets.indexOf(modelData.id) !== -1)
+              readonly property bool isAdded: {
+                if (rootRef && typeof rootRef.isWidgetActiveOnMonitor === "function") {
+                  return rootRef.isWidgetActiveOnMonitor(modelData.id, selectorRoot.targetMonitorName)
+                }
+                return (rootRef && rootRef.enabledWidgets && rootRef.enabledWidgets.indexOf(modelData.id) !== -1)
+              }
 
               RowLayout {
                 anchors.fill: parent
@@ -394,7 +483,7 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
                           if (rootRef && rootRef.toggleWidgetEnabled) {
-                            rootRef.toggleWidgetEnabled(modelData.id, !isAdded)
+                            rootRef.toggleWidgetEnabled(modelData.id, !isAdded, selectorRoot.targetMonitorName)
                           }
                         }
                       }

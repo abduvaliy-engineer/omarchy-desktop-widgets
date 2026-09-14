@@ -61,8 +61,13 @@ Featuring a 3D photo stack gallery, real-time network traffic sparklines, CPU/GP
     - Transparent or frosted glass desktop card displaying files and directories (defaults to `~/Desktop`).
     - Full `.desktop` launcher shortcut support with actual application names and icons.
     - Interactive directory drill-down with breadcrumb back navigation and native file chooser dialog.
+13. **🪙 Coin Tracker** (`widgets/CoinTrackerWidget.qml`)
+    - Live cryptocurrency market tracker featuring multi-coin watchlist, cycling navigation, and custom Coinbase coin adding.
+    - Interactive 24-hour canvas sparkline area chart with hover scrubber crosshair and hourly price tooltips.
+    - 24-hour high/low range progress gauge and multi-currency switching (USD `$`, EUR `€`, GBP `£`).
+    - Configurable refresh intervals (30s, 1m, 5m), automatic coin cycling, and gradient area fill toggle.
 
-All 12 widgets are built-in and available right out of the box from the desktop **Add Widgets** drawer or right-click wallpaper menu.
+All 13 widgets are built-in and available right out of the box from the desktop **Add Widgets** drawer or right-click wallpaper menu.
 
 ---
 
@@ -139,22 +144,30 @@ The desktop widgets feature an interactive shaded backdrop overlay that elevates
 
 ### 🖱️ Widget Interaction & Management
 
+- **Desktop Right-Click Context Menu**:
+  - Right-clicking empty desktop wallpaper opens the **Desktop Controls** menu at any time—**even when widgets are completely hidden**.
+  - **Show Widgets / Hide Widgets**: Quick toggle button in the context menu to hide or reveal widgets on demand.
+  - Quick access to **Unlock Layout (Move Mode)**, **Add / Browse Widgets**, **Layout Presets**, **Widget Preferences**, **Change Wallpaper**, and **Switch Theme**.
 - **Double-Click Blank Desktop to Show/Hide**:
-  - Double-clicking on empty wallpaper or blank space between windows toggles widget visibility.
+  - Double-clicking on empty wallpaper toggles widget visibility.
   - On an empty workspace: smoothly fades out all desktop widgets to display an uncluttered wallpaper; double-clicking blank space again instantly restores them.
   - On a workspace with open windows: double-clicking exposed desktop gaps summons the shaded frosted overlay.
-- **Right-Click Context Menu**:
-  - Right-click anywhere on any widget body to open its options menu.
+- **Toggling with Active App Windows**:
+  - Toggling widgets (`omarchy-shell -q dagyr.desktop-widgets toggle` or custom keybinding) while an application is focused immediately elevates the widget layer above the application window (`WlrLayer.Overlay`).
+  - Dismissing the overlay restores your previous desktop layout state without unwanted popups across workspaces.
+- **Widget-Level Right-Click Context Menu**:
+  - Right-click anywhere on any widget body to open its specific options menu.
+  - When multiple monitors are connected, widgets display a **"Move to <Monitor>"** option allowing immediate migration to secondary screens.
   - Selecting any setting option automatically saves your preference and dismisses the context menu.
 - **Move Mode (Layout Lock/Unlock)**:
-  - Select **Unlock Widgets Layout (Move Mode)** from any widget's context menu.
-  - Drag widgets freely across your desktop with smooth physics, drag scale feedback (`1.025×`), and 20px grid snapping.
+  - Select **Unlock Layout** from the desktop menu, any widget menu, or top banner.
+  - Drag widgets freely across your desktop with smooth physics, drag scale feedback (`1.025×`), and configurable grid snapping. Custom-header widgets feature dedicated move grip handles (`\uf0b2`) and close buttons (`\uf00d`).
   - Click **Done / Lock** in the floating top banner when finished.
 - **Interactive Resizing**:
   - In Move Mode, resize handles appear on the bottom-right corner (width & height), right edge (width), and bottom edge (height).
-  - A real-time dimension pill (`W × H px`) displays current size with 20px snap-to-grid on release.
+  - A real-time dimension pill (`W × H px`) displays current size with snap-to-grid on release.
 - **Persistent Preferences**:
-  - All widget positions, dimensions, enabled states, and custom settings (e.g. 12h/24h time, seconds display, monitored network devices, cycle speeds, theme modes) are persisted to `~/.local/state/omarchy/dagyr.desktop-widgets.json`.
+  - All widget positions, dimensions, enabled states, and custom settings are persisted to `~/.local/state/omarchy/dagyr.desktop-widgets.json`.
 
 ---
 
@@ -265,12 +278,13 @@ All desktop widgets inherit from the base card component (`shared/WidgetCard.qml
 | :--- | :--- |
 | **Glassmorphic Surface** | Adaptive translucent background (`Color.bar.background`), 18px corner radius, responsive border highlights, and hardware-accelerated `MultiEffect` drop shadows. |
 | **Default Content Slot** | Any QML child elements declared directly inside `WidgetCard { ... }` automatically populate the inner card body (`default property alias content: contentContainer.data`). |
-| **Optional Header** | Set `showHeader: true`, `title: "..."`, and `icon: "\uf005"` to automatically render a standardized header with icon, title, and close buttons during Move Mode. |
-| **Move & Drag Physics** | Integrated 20px grid snapping, smooth scale-up animation during drag, screen edge collision clamping, and automatic coordinate persistence. |
+| **Optional Header** | Set `showHeader: true`, `title: "..."`, and `icon: "\uf005"` to automatically render a standardized header with icon, title, and close buttons during Move Mode. Custom-header widgets include integrated move grips (`\uf0b2`) and close buttons (`\uf00d`). |
+| **Move & Drag Physics** | Integrated grid snapping (configurable 1px, 10px, 20px, 40px), smooth scale-up animation during drag, screen edge collision clamping, and automatic coordinate persistence. |
 | **3-Axis Resizing** | Built-in corner and edge resize handles with min/max boundary constraints (`minWidth`, `minHeight`, `maxWidth`, `maxHeight`) and live dimension tooltip badge. |
-| **Right-Click Context Menu** | Standard menu with "Unlock Widgets Layout", "Reset Positions", and widget toggle, expandable via `customMenuContent: Component { ... }`. |
+| **Right-Click Context Menu** | Standard menu with "Unlock Widgets Layout", "Reset Positions", and widget toggle, expandable via `customMenuContent: Component { ... }`. When multi-monitor displays are connected, dynamically presents **"Move to <Monitor>"** transfer options. |
+| **Multi-Monitor Geometry** | Native per-monitor dimension awareness via `monitorWidth` and `monitorHeight`, resolution-bound clamping (`maxX`, `maxY`), and display output tracking (`eDP-1`, `HDMI-A-1`, `DP-1`). |
 | **State Persistence API** | Built-in methods (`saveSetting`, `getSetting`, `saveSettings`, `settingsLoaded`) connected directly to Omarchy's persistent JSON state storage. |
-| **Screen Geometry Access** | `screenWidth`, `screenHeight`, and `rootRef` access for responsive calculations. |
+| **Screen Geometry Access** | `screenWidth`, `screenHeight`, `monitorWidth`, `monitorHeight`, and `rootRef` access for responsive calculations. |
 
 ---
 
@@ -436,6 +450,43 @@ omarchy-shell dagyr.desktop-widgets-update check
 omarchy-shell dagyr.desktop-widgets-update open
 omarchy-shell dagyr.desktop-widgets-update close
 ```
+
+---
+
+## 📜 Release History
+
+### 🌟 v1.2.4 — Crypto Tracker Widget & `WidgetCard` Multi-Monitor Updates
+- **🪙 Crypto Tracker Widget (`CoinTrackerWidget.qml`)**:
+  - Live cryptocurrency price tracking powered by backend helper (`get-crypto`).
+  - Interactive 24-hour canvas sparkline area chart with hover scrubber crosshair and hourly price tooltips.
+  - Multi-currency support (USD `$`, EUR `€`, GBP `£`, CAD `CA$`, AUD `A$`, JPY `¥`).
+  - Multi-coin watchlist cycling with customizable auto-cycle intervals (30s, 1m, 5m) or manual toggle.
+  - Custom coin adding via Coinbase price URL or token slug.
+  - 24-hour high/low range progress gauge and gradient fill toggle.
+- **🧩 `WidgetCard.qml` Multi-Monitor Enhancements**:
+  - Direct per-monitor dimension awareness via `monitorWidth` and `monitorHeight`, eliminating coordinate overflow on mixed-DPI or secondary displays.
+  - Native **"Move to <Monitor>"** context menu submenu dynamically shown when 2+ displays are connected.
+  - Integrated custom move grips (`\uf0b2`) and close buttons (`\uf00d`) for custom-header widgets in Move Mode (Weather, Coin Tracker, App Launcher, Folder View).
+
+### 🛠️ v1.2.3 — Multi-Monitor Independent Layouts & System-Wide Bug Fixes
+- **🖥️ Multi-Monitor Independent Layouts**:
+  - Per-monitor widget persistence (`monitor_enabled_widgets` and `monitor_positions`) allowing secondary monitors to maintain their own widgets rather than mirroring.
+  - Strict resolution boundary clamping (`maxX`, `maxY`) ensuring widgets cannot be placed off-screen on secondary monitors with different aspect ratios.
+- **🗂️ Layout Preset Loading & Unloading**:
+  - Fixed built-in layout presets (Minimal, Productivity, Full Dashboard, Gaming, Default) so selecting a preset cleanly unloads old widgets and loads the preset's widgets across all monitors.
+- **👁️ Desktop Right-Click Context Menu Always Active**:
+  - Decoupled `desktopContextMenu` from widget container visibility. Right-clicking blank wallpaper now reliably opens desktop controls even when widgets are hidden.
+  - Added the **"Show Widgets" / "Hide Widgets"** toggle option directly to item 1 of the desktop context menu.
+- **🌓 Toggle Over Active App Windows**:
+  - Triggering widget toggle (`omarchy-shell -q dagyr.desktop-widgets toggle` or keybinding) when an application window is open now elevates the widget layer overtop the window (`WlrLayer.Overlay`).
+- **🔄 Manual Toggle Workspace Persistence**:
+  - In manual toggle auto-hide mode, hidden widgets stay hidden when navigating between virtual workspaces without unwanted popups.
+- **🔍 Widget Selector Full-Width Search**:
+  - Relocated search bar directly above category filter buttons with full-width input, instant clear icon (`\uf00d`), and live query matching across names, descriptions, and tags.
+- **📝 Quick Notes Scratchpad Click-to-Focus**:
+  - Fixed click handling so clicking anywhere in the blank space below text immediately focuses the note editor at the end of the content.
+- **🕒 Minimal Preset Greeting Toggle**:
+  - Hero Clock greeting message automatically turns off in the Minimal layout preset and restores when loading standard presets.
 
 ---
 

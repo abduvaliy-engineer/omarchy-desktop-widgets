@@ -1,0 +1,384 @@
+#!/usr/bin/env python3
+import sys
+import os
+import json
+import time
+import datetime
+import urllib.request
+import urllib.parse
+import re
+
+CURRENCY_SYMBOLS = {
+    "USD": "$",
+    "EUR": "€",
+    "GBP": "£",
+    "CAD": "CA$",
+    "AUD": "A$",
+    "JPY": "¥"
+}
+
+KNOWN_CRYPTOS = {
+    "btc": {"id": "BTC", "name": "Bitcoin", "symbol": "BTC", "slug": "bitcoin", "icon": "\uf15a"},
+    "bitcoin": {"id": "BTC", "name": "Bitcoin", "symbol": "BTC", "slug": "bitcoin", "icon": "\uf15a"},
+    "eth": {"id": "ETH", "name": "Ethereum", "symbol": "ETH", "slug": "ethereum", "icon": "\uf42e"},
+    "ethereum": {"id": "ETH", "name": "Ethereum", "symbol": "ETH", "slug": "ethereum", "icon": "\uf42e"},
+    "sol": {"id": "SOL", "name": "Solana", "symbol": "SOL", "slug": "solana", "icon": "\uf12e"},
+    "solana": {"id": "SOL", "name": "Solana", "symbol": "SOL", "slug": "solana", "icon": "\uf12e"},
+    "doge": {"id": "DOGE", "name": "Dogecoin", "symbol": "DOGE", "slug": "dogecoin", "icon": "\uf1b0"},
+    "dogecoin": {"id": "DOGE", "name": "Dogecoin", "symbol": "DOGE", "slug": "dogecoin", "icon": "\uf1b0"},
+    "xrp": {"id": "XRP", "name": "XRP", "symbol": "XRP", "slug": "xrp", "icon": "\uf12e"},
+    "ripple": {"id": "XRP", "name": "XRP", "symbol": "XRP", "slug": "xrp", "icon": "\uf12e"},
+    "ada": {"id": "ADA", "name": "Cardano", "symbol": "ADA", "slug": "cardano", "icon": "\uf111"},
+    "cardano": {"id": "ADA", "name": "Cardano", "symbol": "ADA", "slug": "cardano", "icon": "\uf111"},
+    "avax": {"id": "AVAX", "name": "Avalanche", "symbol": "AVAX", "slug": "avalanche", "icon": "\uf0e7"},
+    "avalanche": {"id": "AVAX", "name": "Avalanche", "symbol": "AVAX", "slug": "avalanche", "icon": "\uf0e7"},
+    "link": {"id": "LINK", "name": "Chainlink", "symbol": "LINK", "slug": "chainlink", "icon": "\uf0c1"},
+    "chainlink": {"id": "LINK", "name": "Chainlink", "symbol": "LINK", "slug": "chainlink", "icon": "\uf0c1"},
+    "dot": {"id": "DOT", "name": "Polkadot", "symbol": "DOT", "slug": "polkadot", "icon": "\uf111"},
+    "polkadot": {"id": "DOT", "name": "Polkadot", "symbol": "DOT", "slug": "polkadot", "icon": "\uf111"},
+    "ltc": {"id": "LTC", "name": "Litecoin", "symbol": "LTC", "slug": "litecoin", "icon": "\uf15a"},
+    "litecoin": {"id": "LTC", "name": "Litecoin", "symbol": "LTC", "slug": "litecoin", "icon": "\uf15a"},
+    "shib": {"id": "SHIB", "name": "Shiba Inu", "symbol": "SHIB", "slug": "shiba-inu", "icon": "\uf1b0"},
+    "shiba-inu": {"id": "SHIB", "name": "Shiba Inu", "symbol": "SHIB", "slug": "shiba-inu", "icon": "\uf1b0"},
+    "sui": {"id": "SUI", "name": "SUI", "symbol": "SUI", "slug": "sui", "icon": "\uf12e"},
+    "near": {"id": "NEAR", "name": "NEAR Protocol", "symbol": "NEAR", "slug": "near-protocol", "icon": "\uf12e"},
+    "near-protocol": {"id": "NEAR", "name": "NEAR Protocol", "symbol": "NEAR", "slug": "near-protocol", "icon": "\uf12e"},
+    "pepe": {"id": "PEPE", "name": "Pepe", "symbol": "PEPE", "slug": "pepe", "icon": "\uf1b0"},
+    "matic": {"id": "MATIC", "name": "Polygon", "symbol": "MATIC", "slug": "polygon", "icon": "\uf12e"},
+    "polygon": {"id": "MATIC", "name": "Polygon", "symbol": "MATIC", "slug": "polygon", "icon": "\uf12e"},
+    "pol": {"id": "POL", "name": "Polygon Ecosystem", "symbol": "POL", "slug": "polygon-ecosystem-token", "icon": "\uf12e"},
+    "bch": {"id": "BCH", "name": "Bitcoin Cash", "symbol": "BCH", "slug": "bitcoin-cash", "icon": "\uf15a"},
+    "algo": {"id": "ALGO", "name": "Algorand", "symbol": "ALGO", "slug": "algorand", "icon": "\uf12e"},
+    "atom": {"id": "ATOM", "name": "Cosmos", "symbol": "ATOM", "slug": "cosmos", "icon": "\uf12e"},
+    "xmr": {"id": "XMR", "name": "Monero", "symbol": "XMR", "slug": "monero", "icon": "\uf12e"},
+    "uni": {"id": "UNI", "name": "Uniswap", "symbol": "UNI", "slug": "uniswap", "icon": "\uf12e"},
+    "apt": {"id": "APT", "name": "Aptos", "symbol": "APT", "slug": "aptos", "icon": "\uf12e"}
+}
+
+CACHE_DIR = "/tmp"
+CACHE_TTL = 20 # seconds
+
+def parse_crypto_input(raw_input):
+    s = raw_input.strip() if raw_input else "BTC"
+    url = ""
+    slug = ""
+    # If it's a Coinbase link or web URL
+    if "coinbase.com/price/" in s:
+        url = s if s.startswith("http") else f"https://{s}"
+        parts = s.split("coinbase.com/price/")
+        if len(parts) > 1:
+            slug = parts[1].split("/")[0].split("?")[0].strip().lower()
+    elif s.startswith("http://") or s.startswith("https://"):
+        url = s
+        slug = s.rstrip("/").split("/")[-1].split("?")[0].strip().lower()
+    else:
+        slug = s.strip().lower()
+
+    # Look up in known cryptos
+    if slug in KNOWN_CRYPTOS:
+        info = dict(KNOWN_CRYPTOS[slug])
+        if not url:
+            info["url"] = f"https://www.coinbase.com/price/{info['slug']}"
+        else:
+            info["url"] = url
+        return info
+
+    # If not in KNOWN_CRYPTOS, try fallback naming
+    sym = slug.upper()
+    name = slug.replace("-", " ").title()
+    info = {
+        "id": sym,
+        "name": name,
+        "symbol": sym,
+        "slug": slug,
+        "icon": "\uf12e", # generic crypto token icon
+        "url": url if url else f"https://www.coinbase.com/price/{slug}"
+    }
+    return info
+
+def get_cache_file(coin_id, currency):
+    safe_coin = re.sub(r'[^a-zA-Z0-9_-]', '_', coin_id).lower()
+    return os.path.join(CACHE_DIR, f"omarchy-crypto-cache-{safe_coin}-{currency.lower()}.json")
+
+def read_cache(coin_id, currency, max_age=CACHE_TTL):
+    cache_path = get_cache_file(coin_id, currency)
+    if os.path.exists(cache_path):
+        try:
+            mtime = os.path.getmtime(cache_path)
+            now = time.time()
+            if now - mtime <= max_age:
+                with open(cache_path, "r") as f:
+                    return json.load(f)
+        except Exception:
+            pass
+    return None
+
+def write_cache(coin_id, currency, data):
+    cache_path = get_cache_file(coin_id, currency)
+    try:
+        with open(cache_path, "w") as f:
+            json.dump(data, f)
+    except Exception:
+        pass
+
+def format_currency_price(val, symbol):
+    try:
+        num = float(val)
+        if num >= 100000:
+            return f"{symbol}{num:,.0f}"
+        elif num >= 1.0:
+            return f"{symbol}{num:,.2f}"
+        elif num >= 0.01:
+            return f"{symbol}{num:,.4f}"
+        elif num >= 0.0001:
+            return f"{symbol}{num:,.6f}"
+        else:
+            return f"{symbol}{num:,.8f}"
+    except Exception:
+        return f"{symbol}{val}"
+
+def format_bound(val, symbol):
+    try:
+        num = float(val)
+        if num >= 1000:
+            return f"{symbol}{num:,.0f}"
+        elif num >= 1.0:
+            return f"{symbol}{num:,.2f}"
+        elif num >= 0.01:
+            return f"{symbol}{num:,.4f}"
+        else:
+            return f"{symbol}{num:,.6f}"
+    except Exception:
+        return f"{symbol}{val}"
+
+def format_volume(vol):
+    try:
+        v = float(vol)
+        if v >= 1_000_000:
+            return f"{v / 1_000_000:.2f}M"
+        elif v >= 1_000:
+            return f"{v / 1_000:.2f}K"
+        elif v >= 1:
+            return f"{v:.1f}"
+        return f"{v:.3f}"
+    except Exception:
+        return str(vol)
+
+def fetch_coinbase(coin_symbol, currency):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; OmarchyWidgets/1.0)",
+        "Accept": "application/json"
+    }
+
+    # Try direct pair first e.g. SOL-USD, SOL-EUR
+    pair = f"{coin_symbol.upper()}-{currency.upper()}"
+    stats_url = f"https://api.exchange.coinbase.com/products/{pair}/stats"
+    conversion_ratio = 1.0
+
+    try:
+        req_stats = urllib.request.Request(stats_url, headers=headers)
+        with urllib.request.urlopen(req_stats, timeout=4) as resp:
+            stats = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        # If fiat pair not available (e.g. SUI-EUR), fallback to USD pair and convert
+        if currency.upper() != "USD":
+            pair = f"{coin_symbol.upper()}-USD"
+            stats_url = f"https://api.exchange.coinbase.com/products/{pair}/stats"
+            req_stats = urllib.request.Request(stats_url, headers=headers)
+            with urllib.request.urlopen(req_stats, timeout=4) as resp:
+                stats = json.loads(resp.read().decode("utf-8"))
+
+            # Get conversion rate
+            try:
+                rate_url = f"https://api.exchange.coinbase.com/products/BTC-{currency.upper()}/stats"
+                btc_usd_url = "https://api.exchange.coinbase.com/products/BTC-USD/stats"
+                with urllib.request.urlopen(urllib.request.Request(rate_url, headers=headers), timeout=3) as r1:
+                    d1 = json.loads(r1.read().decode("utf-8"))
+                with urllib.request.urlopen(urllib.request.Request(btc_usd_url, headers=headers), timeout=3) as r2:
+                    d2 = json.loads(r2.read().decode("utf-8"))
+                conversion_ratio = float(d1["last"]) / float(d2["last"])
+            except Exception:
+                conversion_ratio = 0.86 if currency.upper() == "EUR" else (0.74 if currency.upper() == "GBP" else 1.0)
+        else:
+            raise
+
+    last_price = float(stats["last"]) * conversion_ratio
+    open_price = float(stats["open"]) * conversion_ratio
+    high_price = float(stats["high"]) * conversion_ratio
+    low_price = float(stats["low"]) * conversion_ratio
+    volume = float(stats.get("volume", 0))
+
+    # Fetch candles for sparkline
+    candles_url = f"https://api.exchange.coinbase.com/products/{pair}/candles?granularity=3600"
+    sparkline = []
+    try:
+        req_candles = urllib.request.Request(candles_url, headers=headers)
+        with urllib.request.urlopen(req_candles, timeout=4) as resp:
+            candles_raw = json.loads(resp.read().decode("utf-8"))
+        if isinstance(candles_raw, list) and len(candles_raw) > 0:
+            slice_24 = candles_raw[:24]
+            slice_24.reverse()
+            for c in slice_24:
+                sparkline.append(round(float(c[4]) * conversion_ratio, 6 if last_price < 1 else 2))
+    except Exception:
+        pass
+
+    if len(sparkline) == 0 or sparkline[-1] != last_price:
+        sparkline.append(round(last_price, 6 if last_price < 1 else 2))
+
+    return {
+        "price": last_price,
+        "open": open_price,
+        "high": high_price,
+        "low": low_price,
+        "volume": volume,
+        "sparkline": sparkline
+    }
+
+def fetch_coingecko(slug, currency):
+    cur = currency.lower()
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; OmarchyWidgets/1.0)",
+        "Accept": "application/json"
+    }
+
+    url = f"https://api.coingecko.com/api/v3/coins/{slug}/market_chart?vs_currency={cur}&days=1"
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+
+    prices = data.get("prices", [])
+    if not prices:
+        raise ValueError("No price data from CoinGecko")
+
+    last_price = prices[-1][1]
+    sparkline = [round(p[1], 6 if last_price < 1 else 2) for p in prices]
+    if len(sparkline) > 30:
+        step = len(sparkline) / 24
+        sparkline = [sparkline[int(i * step)] for i in range(24)]
+
+    open_price = prices[0][1]
+    high_price = max([p[1] for p in prices])
+    low_price = min([p[1] for p in prices])
+
+    total_volumes = data.get("total_volumes", [])
+    volume = total_volumes[-1][1] / last_price if (total_volumes and last_price > 0) else 0
+
+    return {
+        "price": last_price,
+        "open": open_price,
+        "high": high_price,
+        "low": low_price,
+        "volume": volume,
+        "sparkline": sparkline
+    }
+
+def main():
+    coin_arg = sys.argv[1].strip() if len(sys.argv) > 1 and sys.argv[1].strip() else "BTC"
+    currency = sys.argv[2].upper().strip() if len(sys.argv) > 2 and sys.argv[2].strip() else "USD"
+
+    if currency not in ("USD", "EUR", "GBP", "CAD", "AUD", "JPY"):
+        currency = "USD"
+
+    coin_info = parse_crypto_input(coin_arg)
+    coin_id = coin_info["id"]
+
+    # Check fresh cache first
+    cached = read_cache(coin_id, currency, max_age=CACHE_TTL)
+    if cached:
+        print(json.dumps(cached))
+        return
+
+    symbol = CURRENCY_SYMBOLS.get(currency, "$")
+    data = None
+    err_msg = ""
+
+    # 1. Try Coinbase Exchange API with symbol
+    try:
+        data = fetch_coinbase(coin_info["symbol"], currency)
+    except Exception as e:
+        err_msg = f"Coinbase error: {e}"
+
+    # 2. Fallback to CoinGecko with slug
+    if not data:
+        try:
+            data = fetch_coingecko(coin_info["slug"], currency)
+        except Exception as e:
+            err_msg += f" | CoinGecko error: {e}"
+
+    # 3. If both failed, try stale cache
+    if not data:
+        stale = read_cache(coin_id, currency, max_age=86400)
+        if stale:
+            stale["is_stale"] = True
+            print(json.dumps(stale))
+            return
+
+        print(json.dumps({
+            "status": "error",
+            "message": err_msg or f"Failed to connect to market feed for {coin_info['name']}",
+            "coin_id": coin_info["id"],
+            "coin_name": coin_info["name"],
+            "coin_symbol": coin_info["symbol"],
+            "coin_icon": coin_info["icon"],
+            "coin_url": coin_info["url"],
+            "currency": currency,
+            "currency_symbol": symbol
+        }))
+        return
+
+    price = data["price"]
+    open_p = data["open"]
+    high_p = max(data["high"], price)
+    low_p = min(data["low"], price)
+    vol = data["volume"]
+    spark = data["sparkline"]
+
+    change = price - open_p
+    change_pct = (change / open_p * 100) if open_p > 0 else 0.0
+    is_positive = change >= 0
+
+    range_span = high_p - low_p
+    if range_span > 0:
+        range_pct = max(0.0, min(100.0, ((price - low_p) / range_span) * 100))
+    else:
+        range_pct = 50.0
+
+    sign = "+" if is_positive else ""
+    now_str = datetime.datetime.now().strftime("%H:%M")
+
+    result = {
+        "status": "ok",
+        "coin_id": coin_info["id"],
+        "coin_name": coin_info["name"],
+        "coin_symbol": coin_info["symbol"],
+        "coin_icon": coin_info["icon"],
+        "coin_url": coin_info["url"],
+        "currency": currency,
+        "currency_symbol": symbol,
+        "price": price,
+        "price_formatted": format_currency_price(price, symbol),
+        "open_24h": open_p,
+        "change_24h": round(change, 4 if price < 1 else 2),
+        "change_24h_percent": round(change_pct, 2),
+        "change_formatted": f"{sign}{format_currency_price(abs(change), symbol)} ({sign}{change_pct:.2f}%)",
+        "change_pct_formatted": f"{sign}{change_pct:.2f}%",
+        "is_positive": is_positive,
+        "high_24h": high_p,
+        "high_formatted": format_bound(high_p, symbol),
+        "low_24h": low_p,
+        "low_formatted": format_bound(low_p, symbol),
+        "range_percent": round(range_pct, 1),
+        "volume_crypto": f"{format_volume(vol)} {coin_info['symbol']}",
+        "sparkline": spark,
+        "sparkline_min": min(spark) if spark else low_p,
+        "sparkline_max": max(spark) if spark else high_p,
+        "last_updated": now_str,
+        "is_stale": False
+    }
+
+    write_cache(coin_id, currency, result)
+    print(json.dumps(result))
+
+if __name__ == "__main__":
+    main()

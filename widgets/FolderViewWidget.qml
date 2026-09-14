@@ -555,6 +555,87 @@ WidgetCard {
           onClicked: folderWidgetRoot.openInFileManager()
         }
       }
+
+      // Remove / Close Button (when in edit mode)
+      Rectangle {
+        visible: rootRef && rootRef.layoutEditMode
+        width: 22
+        height: 22
+        radius: 11
+        color: closeFolderMouse.containsMouse ? Qt.rgba(Color.urgent.r, Color.urgent.g, Color.urgent.b, 0.35) : Qt.rgba(1, 1, 1, 0.08)
+        border.color: Qt.rgba(Color.urgent.r, Color.urgent.g, Color.urgent.b, 0.5)
+        border.width: 1
+
+        Text {
+          anchors.centerIn: parent
+          text: "\uf00d"
+          font.family: Style.font.family
+          font.pixelSize: 10
+          color: Color.urgent
+        }
+
+        MouseArea {
+          id: closeFolderMouse
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: {
+            if (rootRef && rootRef.toggleWidgetEnabled) {
+              rootRef.toggleWidgetEnabled(folderWidgetRoot.widgetId, false, folderWidgetRoot.monitorName)
+            }
+          }
+        }
+      }
+
+      // Move Grip Button (when in edit mode)
+      Rectangle {
+        id: folderGripButton
+        visible: rootRef && rootRef.layoutEditMode
+        width: 22
+        height: 22
+        radius: 11
+        color: folderGripArea.containsMouse ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.35) : Qt.rgba(1, 1, 1, 0.08)
+        border.color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.5)
+        border.width: 1
+
+        Text {
+          anchors.centerIn: parent
+          text: "\uf0b2"
+          font.family: Style.font.family
+          font.pixelSize: 10
+          color: Color.accent
+        }
+
+        MouseArea {
+          id: folderGripArea
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.SizeAllCursor
+          drag.target: folderWidgetRoot.targetItem
+          drag.axis: Drag.XAndYAxis
+          drag.minimumX: 10
+          drag.maximumX: Math.max(10, folderWidgetRoot.screenWidth - folderWidgetRoot.width - 10)
+          drag.minimumY: 10
+          drag.maximumY: Math.max(10, folderWidgetRoot.screenHeight - folderWidgetRoot.height - 10)
+
+          onPressed: folderWidgetRoot.customGripDragging = true
+          onReleased: function() {
+            folderWidgetRoot.customGripDragging = false
+            var maxX = Math.max(10, folderWidgetRoot.screenWidth - folderWidgetRoot.width - 10)
+            var maxY = Math.max(10, folderWidgetRoot.screenHeight - folderWidgetRoot.height - 10)
+            var snappedX = folderWidgetRoot.snapVal(folderWidgetRoot.targetItem.x)
+            var snappedY = folderWidgetRoot.snapVal(folderWidgetRoot.targetItem.y)
+            snappedX = Math.max(10, Math.min(maxX, snappedX))
+            snappedY = Math.max(10, Math.min(maxY, snappedY))
+            folderWidgetRoot.targetItem.x = snappedX
+            folderWidgetRoot.targetItem.y = snappedY
+            if (rootRef && rootRef.saveWidgetPos) {
+              rootRef.saveWidgetPos(folderWidgetRoot.widgetId, snappedX, snappedY, folderWidgetRoot.snapVal(folderWidgetRoot.width), folderWidgetRoot.snapVal(folderWidgetRoot.height), folderWidgetRoot.monitorName)
+            }
+          }
+          onCanceled: folderWidgetRoot.customGripDragging = false
+        }
+      }
     }
 
     // Grid of Items in Folder

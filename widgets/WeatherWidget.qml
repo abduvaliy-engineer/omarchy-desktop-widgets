@@ -368,6 +368,87 @@ WidgetCard {
           onClicked: weatherWidgetRoot.toggleUnits()
         }
       }
+
+      // Close / Hide Button (when in edit mode)
+      Rectangle {
+        visible: rootRef && rootRef.layoutEditMode
+        width: 22
+        height: 22
+        radius: 11
+        color: closeWeatherMouse.containsMouse ? Qt.rgba(Color.urgent.r, Color.urgent.g, Color.urgent.b, 0.35) : Qt.rgba(1, 1, 1, 0.08)
+        border.color: Qt.rgba(Color.urgent.r, Color.urgent.g, Color.urgent.b, 0.5)
+        border.width: 1
+
+        Text {
+          anchors.centerIn: parent
+          text: "\uf00d"
+          font.family: Style.font.family
+          font.pixelSize: 10
+          color: Color.urgent
+        }
+
+        MouseArea {
+          id: closeWeatherMouse
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: {
+            if (rootRef && rootRef.toggleWidgetEnabled) {
+              rootRef.toggleWidgetEnabled(weatherWidgetRoot.widgetId, false, weatherWidgetRoot.monitorName)
+            }
+          }
+        }
+      }
+
+      // Move Grip Button (when in edit mode)
+      Rectangle {
+        id: weatherGripButton
+        visible: rootRef && rootRef.layoutEditMode
+        width: 22
+        height: 22
+        radius: 11
+        color: weatherGripArea.containsMouse ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.35) : Qt.rgba(1, 1, 1, 0.08)
+        border.color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.5)
+        border.width: 1
+
+        Text {
+          anchors.centerIn: parent
+          text: "\uf0b2"
+          font.family: Style.font.family
+          font.pixelSize: 10
+          color: Color.accent
+        }
+
+        MouseArea {
+          id: weatherGripArea
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.SizeAllCursor
+          drag.target: weatherWidgetRoot.targetItem
+          drag.axis: Drag.XAndYAxis
+          drag.minimumX: 10
+          drag.maximumX: Math.max(10, weatherWidgetRoot.screenWidth - weatherWidgetRoot.width - 10)
+          drag.minimumY: 10
+          drag.maximumY: Math.max(10, weatherWidgetRoot.screenHeight - weatherWidgetRoot.height - 10)
+
+          onPressed: weatherWidgetRoot.customGripDragging = true
+          onReleased: function() {
+            weatherWidgetRoot.customGripDragging = false
+            var maxX = Math.max(10, weatherWidgetRoot.screenWidth - weatherWidgetRoot.width - 10)
+            var maxY = Math.max(10, weatherWidgetRoot.screenHeight - weatherWidgetRoot.height - 10)
+            var snappedX = weatherWidgetRoot.snapVal(weatherWidgetRoot.targetItem.x)
+            var snappedY = weatherWidgetRoot.snapVal(weatherWidgetRoot.targetItem.y)
+            snappedX = Math.max(10, Math.min(maxX, snappedX))
+            snappedY = Math.max(10, Math.min(maxY, snappedY))
+            weatherWidgetRoot.targetItem.x = snappedX
+            weatherWidgetRoot.targetItem.y = snappedY
+            if (rootRef && rootRef.saveWidgetPos) {
+              rootRef.saveWidgetPos(weatherWidgetRoot.widgetId, snappedX, snappedY, weatherWidgetRoot.snapVal(weatherWidgetRoot.width), weatherWidgetRoot.snapVal(weatherWidgetRoot.height), weatherWidgetRoot.monitorName)
+            }
+          }
+          onCanceled: weatherWidgetRoot.customGripDragging = false
+        }
+      }
     }
 
     // Hero Section: Big Icon + Temperature & Condition
