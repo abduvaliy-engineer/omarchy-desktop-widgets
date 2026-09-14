@@ -151,7 +151,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: {
               if (rootRef && rootRef.toggleWidgetEnabled) {
-                rootRef.toggleWidgetEnabled(widgetCardRoot.widgetId, false)
+                rootRef.toggleWidgetEnabled(widgetCardRoot.widgetId, false, widgetCardRoot.monitorName)
               }
             }
           }

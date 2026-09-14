@@ -12,10 +12,13 @@ Item {
 
   property string widgetId: "gallery"
   property var rootRef: null
+  property string monitorName: ""
+  property real monitorWidth: 0
+  property real monitorHeight: 0
   property real defaultX: Style.space(24)
   property real defaultY: Style.space(64)
-  readonly property real screenWidth: (rootRef && rootRef.screenWidth > 0) ? rootRef.screenWidth : 1920
-  readonly property real screenHeight: (rootRef && rootRef.screenHeight > 0) ? rootRef.screenHeight : 1080
+  readonly property real screenWidth: (monitorWidth > 0) ? monitorWidth : ((rootRef && rootRef.screenWidth > 0) ? rootRef.screenWidth : 1920)
+  readonly property real screenHeight: (monitorHeight > 0) ? monitorHeight : ((rootRef && rootRef.screenHeight > 0) ? rootRef.screenHeight : 1080)
 
   property real defaultWidth: 360
   property real defaultHeight: 228
@@ -688,7 +691,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: {
               if (rootRef && rootRef.toggleWidgetEnabled) {
-                rootRef.toggleWidgetEnabled(galleryWidgetRoot.widgetId, false)
+                rootRef.toggleWidgetEnabled(galleryWidgetRoot.widgetId, false, galleryWidgetRoot.monitorName)
               }
             }
           }
@@ -738,7 +741,7 @@ Item {
               galleryWidgetRoot.targetItem.x = snappedX
               galleryWidgetRoot.targetItem.y = snappedY
               if (rootRef && rootRef.saveWidgetPos) {
-                rootRef.saveWidgetPos(galleryWidgetRoot.widgetId, snappedX, snappedY, Math.round(galleryWidgetRoot.width / 20) * 20, Math.round(galleryWidgetRoot.height / 20) * 20)
+                rootRef.saveWidgetPos(galleryWidgetRoot.widgetId, snappedX, snappedY, Math.round(galleryWidgetRoot.width / 20) * 20, Math.round(galleryWidgetRoot.height / 20) * 20, galleryWidgetRoot.monitorName)
               }
             }
           }
@@ -938,7 +941,7 @@ Item {
       galleryWidgetRoot.targetItem.x = snappedX
       galleryWidgetRoot.targetItem.y = snappedY
       if (rootRef && rootRef.saveWidgetPos) {
-        rootRef.saveWidgetPos(galleryWidgetRoot.widgetId, snappedX, snappedY, Math.round(galleryWidgetRoot.width / 20) * 20, Math.round(galleryWidgetRoot.height / 20) * 20)
+        rootRef.saveWidgetPos(galleryWidgetRoot.widgetId, snappedX, snappedY, Math.round(galleryWidgetRoot.width / 20) * 20, Math.round(galleryWidgetRoot.height / 20) * 20, galleryWidgetRoot.monitorName)
       }
     }
   }
@@ -1018,7 +1021,7 @@ Item {
         galleryWidgetRoot.width = snappedW
         galleryWidgetRoot.height = snappedH
         if (rootRef && rootRef.saveWidgetPos) {
-          rootRef.saveWidgetPos(galleryWidgetRoot.widgetId, galleryWidgetRoot.targetItem.x, galleryWidgetRoot.targetItem.y, snappedW, snappedH)
+          rootRef.saveWidgetPos(galleryWidgetRoot.widgetId, galleryWidgetRoot.targetItem.x, galleryWidgetRoot.targetItem.y, snappedW, snappedH, galleryWidgetRoot.monitorName)
         }
       }
     }
@@ -1063,7 +1066,7 @@ Item {
         snappedW = Math.max(galleryWidgetRoot.minWidth, Math.min(galleryWidgetRoot.maxWidth, snappedW))
         galleryWidgetRoot.width = snappedW
         if (rootRef && rootRef.saveWidgetPos) {
-          rootRef.saveWidgetPos(galleryWidgetRoot.widgetId, galleryWidgetRoot.targetItem.x, galleryWidgetRoot.targetItem.y, snappedW, Math.round(galleryWidgetRoot.height / 20) * 20)
+          rootRef.saveWidgetPos(galleryWidgetRoot.widgetId, galleryWidgetRoot.targetItem.x, galleryWidgetRoot.targetItem.y, snappedW, Math.round(galleryWidgetRoot.height / 20) * 20, galleryWidgetRoot.monitorName)
         }
       }
     }
@@ -1108,7 +1111,7 @@ Item {
         snappedH = Math.max(galleryWidgetRoot.minHeight, Math.min(galleryWidgetRoot.maxHeight, snappedH))
         galleryWidgetRoot.height = snappedH
         if (rootRef && rootRef.saveWidgetPos) {
-          rootRef.saveWidgetPos(galleryWidgetRoot.widgetId, galleryWidgetRoot.targetItem.x, galleryWidgetRoot.targetItem.y, Math.round(galleryWidgetRoot.width / 20) * 20, snappedH)
+          rootRef.saveWidgetPos(galleryWidgetRoot.widgetId, galleryWidgetRoot.targetItem.x, galleryWidgetRoot.targetItem.y, Math.round(galleryWidgetRoot.width / 20) * 20, snappedH, galleryWidgetRoot.monitorName)
         }
       }
     }

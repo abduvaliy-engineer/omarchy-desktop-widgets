@@ -547,7 +547,7 @@ WidgetCard {
           cursorShape: Qt.PointingHandCursor
           onClicked: {
             if (rootRef && rootRef.toggleWidgetEnabled) {
-              rootRef.toggleWidgetEnabled(notesWidgetRoot.widgetId, false)
+              rootRef.toggleWidgetEnabled(notesWidgetRoot.widgetId, false, notesWidgetRoot.monitorName)
             }
           }
         }
@@ -586,7 +586,7 @@ WidgetCard {
           onReleased: {
             notesWidgetRoot.customGripDragging = false
             if (rootRef && rootRef.saveWidgetPos) {
-              rootRef.saveWidgetPos(notesWidgetRoot.widgetId, Math.round(targetItem.x), Math.round(targetItem.y))
+              rootRef.saveWidgetPos(notesWidgetRoot.widgetId, Math.round(targetItem.x), Math.round(targetItem.y), Math.round(notesWidgetRoot.width), Math.round(notesWidgetRoot.height), notesWidgetRoot.monitorName)
             }
           }
         }

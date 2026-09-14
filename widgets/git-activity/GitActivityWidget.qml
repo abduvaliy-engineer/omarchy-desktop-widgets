@@ -765,7 +765,7 @@ WidgetCard {
           cursorShape: Qt.PointingHandCursor
           onClicked: {
             if (rootRef && rootRef.toggleWidgetEnabled) {
-              rootRef.toggleWidgetEnabled(gitWidgetRoot.widgetId, false)
+              rootRef.toggleWidgetEnabled(gitWidgetRoot.widgetId, false, gitWidgetRoot.monitorName)
             }
           }
         }
@@ -813,7 +813,7 @@ WidgetCard {
             gitWidgetRoot.targetItem.x = snappedX
             gitWidgetRoot.targetItem.y = snappedY
             if (rootRef && rootRef.saveWidgetPos) {
-              rootRef.saveWidgetPos(gitWidgetRoot.widgetId, snappedX, snappedY)
+              rootRef.saveWidgetPos(gitWidgetRoot.widgetId, snappedX, snappedY, gitWidgetRoot.snapVal(gitWidgetRoot.width), gitWidgetRoot.snapVal(gitWidgetRoot.height), gitWidgetRoot.monitorName)
             }
           }
           onCanceled: gitWidgetRoot.customGripDragging = false

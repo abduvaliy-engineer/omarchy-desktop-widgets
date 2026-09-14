@@ -162,8 +162,11 @@ Item {
   }
 
   function saveWidgetPos(id, x, y, w, h, monitorName) {
+    var screens = Quickshell.screens
+    var isMulti = screens && screens.length > 1
     var p = Object.assign({}, root.widgetPositions)
-    var current = p[id] || {}
+    var mp = Object.assign({}, root.monitorPositions)
+    var current = (monitorName && mp[monitorName] && mp[monitorName][id]) ? mp[monitorName][id] : (p[id] || {})
     var targetW = (w !== undefined && w > 0) ? w : (current.w || 0)
     var targetH = (h !== undefined && h > 0) ? h : (current.h || 0)
 
@@ -171,20 +174,26 @@ Item {
     if (targetW > 0 && targetH > 0) {
       entry.w = targetW
       entry.h = targetH
-      p[id] = entry
-      root.widgetPositions = p
-      if (monitorName) {
-        Quickshell.execDetached([root.manageScriptPath, "save_pos", id, x.toString(), y.toString(), targetW.toString(), targetH.toString(), monitorName])
-      } else {
-        Quickshell.execDetached([root.manageScriptPath, "save_pos", id, x.toString(), y.toString(), targetW.toString(), targetH.toString()])
-      }
     } else {
       if (current.w) entry.w = current.w
       if (current.h) entry.h = current.h
+    }
+
+    if (isMulti && monitorName) {
+      var monitorMap = Object.assign({}, mp[monitorName] || {})
+      monitorMap[id] = entry
+      mp[monitorName] = monitorMap
+      root.monitorPositions = mp
+      if (targetW > 0 && targetH > 0) {
+        Quickshell.execDetached([root.manageScriptPath, "save_pos", id, x.toString(), y.toString(), targetW.toString(), targetH.toString(), monitorName])
+      } else {
+        Quickshell.execDetached([root.manageScriptPath, "save_pos", id, x.toString(), y.toString(), monitorName])
+      }
+    } else {
       p[id] = entry
       root.widgetPositions = p
-      if (monitorName) {
-        Quickshell.execDetached([root.manageScriptPath, "save_pos", id, x.toString(), y.toString(), monitorName])
+      if (targetW > 0 && targetH > 0) {
+        Quickshell.execDetached([root.manageScriptPath, "save_pos", id, x.toString(), y.toString(), targetW.toString(), targetH.toString()])
       } else {
         Quickshell.execDetached([root.manageScriptPath, "save_pos", id, x.toString(), y.toString()])
       }
@@ -209,30 +218,66 @@ Item {
     Quickshell.execDetached([root.manageScriptPath, "save_widget_settings", id, JSON.stringify(ws[id])])
   }
 
+  function isDefaultMonitor(mName) {
+    var screens = Quickshell.screens
+    return !screens || screens.length <= 1 || (screens[0] && screens[0].name === mName)
+  }
+
+  function hasMonitorPositionForWidget(id, mName) {
+    var targetId = (id === "btc_tracker") ? "coin_tracker" : id
+    var pos = root.monitorPositions
+    if (!pos || !mName || !pos[mName]) return false
+    return !!(pos[mName][targetId] || (targetId === "coin_tracker" && pos[mName]["btc_tracker"]))
+  }
+
+  function hasAnyMonitorPositionForWidget(id) {
+    var targetId = (id === "btc_tracker") ? "coin_tracker" : id
+    var pos = root.monitorPositions
+    if (!pos) return false
+    for (var m in pos) {
+      if (pos[m] && (pos[m][targetId] || (targetId === "coin_tracker" && pos[m]["btc_tracker"]))) return true
+    }
+    return false
+  }
+
+  function isWidgetEnabledInList(id, list) {
+    var targetId = (id === "btc_tracker") ? "coin_tracker" : id
+    return list && (list.indexOf(targetId) !== -1 || (targetId === "coin_tracker" && list.indexOf("btc_tracker") !== -1))
+  }
+
   function isWidgetActiveOnMonitor(id, mName) {
     var targetId = (id === "btc_tracker") ? "coin_tracker" : id
     var screens = Quickshell.screens
     var isMulti = (screens && screens.length > 1)
 
-    // In multi-monitor mode, if this monitor has an explicit enabled list, honor it
-    if (isMulti && mName && root.monitorEnabledWidgets && root.monitorEnabledWidgets[mName] !== undefined) {
-      var list = root.monitorEnabledWidgets[mName]
-      return list.indexOf(targetId) !== -1 || (targetId === "coin_tracker" && list.indexOf("btc_tracker") !== -1)
+    if (!isMulti) {
+      return root.isWidgetEnabledInList(targetId, root.enabledWidgets)
     }
 
-    // Otherwise (single screen or primary screen on standard preset), use the active preset's root.enabledWidgets!
-    var isFirstScreen = (!screens || screens.length <= 1 || (screens[0] && screens[0].name === mName))
-    if (isFirstScreen) {
-      return root.enabledWidgets.indexOf(targetId) !== -1 || (targetId === "coin_tracker" && root.enabledWidgets.indexOf("btc_tracker") !== -1)
+    // Explicit per-monitor enabled lists have priority.
+    if (mName && root.monitorEnabledWidgets && root.monitorEnabledWidgets[mName] !== undefined) {
+      return root.isWidgetEnabledInList(targetId, root.monitorEnabledWidgets[mName])
     }
-    return false
+
+    // A saved monitor-local position means the widget belongs to that output.
+    if (root.hasMonitorPositionForWidget(targetId, mName)) {
+      return root.isWidgetEnabledInList(targetId, root.enabledWidgets)
+    }
+
+    // If any other monitor owns the widget, do not clone it through global fallback.
+    if (root.hasAnyMonitorPositionForWidget(targetId)) {
+      return false
+    }
+
+    // Legacy single-monitor configs fall back to one deterministic monitor only.
+    return root.isDefaultMonitor(mName) && root.isWidgetEnabledInList(targetId, root.enabledWidgets)
   }
 
   function toggleWidgetEnabled(id, enable, monitorName) {
     var targetId = (id === "btc_tracker") ? "coin_tracker" : id
     var screens = Quickshell.screens
     var isMulti = (screens && screens.length > 1)
-    var isFirstScreen = (!screens || screens.length <= 1 || (screens[0] && screens[0].name === monitorName))
+    var isFirstScreen = root.isDefaultMonitor(monitorName)
 
     if (isMulti && monitorName) {
       var mew = Object.assign({}, root.monitorEnabledWidgets)
@@ -246,15 +291,7 @@ Item {
       mew[monitorName] = mList
       root.monitorEnabledWidgets = mew
 
-      if (isFirstScreen) {
-        var list = root.enabledWidgets.slice()
-        var idx = list.indexOf(targetId)
-        if (enable && idx === -1) list.push(targetId)
-        else if (!enable && idx !== -1) list.splice(idx, 1)
-        root.enabledWidgets = list
-      }
-
-      Quickshell.execDetached([root.manageScriptPath, "toggle_widget", targetId, enable ? "true" : "false", monitorName])
+      Quickshell.execDetached([root.manageScriptPath, "toggle_widget", targetId, enable ? "true" : "false", monitorName, JSON.stringify(mList)])
     } else {
       var sList = root.enabledWidgets.slice()
       var sIdx = sList.indexOf(targetId)
@@ -736,18 +773,20 @@ Item {
         }
 
         readonly property string monitorName: (modelData && modelData.name) ? modelData.name : ""
+        readonly property var hyprMonitor: (typeof Hyprland !== "undefined" && desktopWindow.screen) ? Hyprland.monitorFor(desktopWindow.screen) : null
+        readonly property var monitorWorkspace: hyprMonitor ? hyprMonitor.activeWorkspace : null
 
         readonly property string autoHideMode: (root.appearance && root.appearance.auto_hide_mode) ? root.appearance.auto_hide_mode : "tiled"
 
         readonly property bool hasOpenWindows: {
           var dummy = ToplevelManager.toplevels.values.length
-          var ws = (typeof Hyprland !== "undefined" && Hyprland.focusedWorkspace) ? Hyprland.focusedWorkspace : null
-          return !!(ws && ws.toplevels && ws.toplevels.values.length > 0)
+          var ws = desktopWindow.monitorWorkspace
+          return !!((ws && ws.toplevels && ws.toplevels.values.length > 0) || (ws && ws.windows > 0))
         }
 
         readonly property bool hasFullscreenWindows: {
           var dummy = ToplevelManager.toplevels.values.length
-          var ws = (typeof Hyprland !== "undefined" && Hyprland.focusedWorkspace) ? Hyprland.focusedWorkspace : null
+          var ws = desktopWindow.monitorWorkspace
           if (!ws || !ws.toplevels) return false
           for (var i = 0; i < ws.toplevels.values.length; i++) {
             if (ws.toplevels.values[i].fullscreen) return true
@@ -1211,7 +1250,7 @@ Item {
 
               readonly property string monitorName: desktopWindow.monitorName
               readonly property bool isMultiScreen: Quickshell.screens && Quickshell.screens.length > 1
-              readonly property var monitorPos: (isMultiScreen && root.monitorPositions && monitorName && root.monitorPositions[monitorName] && (root.monitorPositions[monitorName][modelData.id] || (modelData.id === "coin_tracker" ? root.monitorPositions[monitorName]["btc_tracker"] : null))) ? (root.monitorPositions[monitorName][modelData.id] || root.monitorPositions[monitorName]["btc_tracker"]) : null
+              readonly property var monitorPos: (root.monitorPositions && monitorName && root.monitorPositions[monitorName] && (root.monitorPositions[monitorName][modelData.id] || (modelData.id === "coin_tracker" ? root.monitorPositions[monitorName]["btc_tracker"] : null))) ? (root.monitorPositions[monitorName][modelData.id] || root.monitorPositions[monitorName]["btc_tracker"]) : null
               readonly property var savedPos: monitorPos ? monitorPos : ((root.widgetPositions && (root.widgetPositions[modelData.id] || (modelData.id === "coin_tracker" ? root.widgetPositions["btc_tracker"] : null))) ? (root.widgetPositions[modelData.id] || root.widgetPositions["btc_tracker"]) : null)
               readonly property real savedWidth: (savedPos && savedPos.w !== undefined) ? savedPos.w : 0
               readonly property real savedHeight: (savedPos && savedPos.h !== undefined) ? savedPos.h : 0

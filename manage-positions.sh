@@ -412,11 +412,14 @@ def main():
                 if 'w' in old and 'h' in old:
                     pos_entry['w'] = old['w']
                     pos_entry['h'] = old['h']
-        settings['positions'][widget_id] = pos_entry
         if monitor:
             if monitor not in settings['monitor_positions']:
                 settings['monitor_positions'][monitor] = {}
             settings['monitor_positions'][monitor][widget_id] = copy.deepcopy(pos_entry)
+            if widget_id not in settings.get('positions', {}):
+                settings['positions'][widget_id] = copy.deepcopy(pos_entry)
+        else:
+            settings['positions'][widget_id] = pos_entry
         save_settings(settings)
         print(json.dumps({"status": "saved", "positions": settings['positions']}))
     elif action == 'save_geometry' and len(sys.argv) >= 7:
@@ -427,11 +430,14 @@ def main():
         h = int(sys.argv[6])
         monitor = sys.argv[7] if len(sys.argv) >= 8 else None
         geom = {'x': x, 'y': y, 'w': w, 'h': h}
-        settings['positions'][widget_id] = geom
         if monitor:
             if monitor not in settings['monitor_positions']:
                 settings['monitor_positions'][monitor] = {}
             settings['monitor_positions'][monitor][widget_id] = copy.deepcopy(geom)
+            if widget_id not in settings.get('positions', {}):
+                settings['positions'][widget_id] = copy.deepcopy(geom)
+        else:
+            settings['positions'][widget_id] = geom
         save_settings(settings)
         print(json.dumps({"status": "geometry_saved", "widget_id": widget_id, "geometry": settings['positions'][widget_id]}))
     elif action == 'toggle_widget' and len(sys.argv) >= 4:
@@ -442,8 +448,15 @@ def main():
         if monitor:
             if 'monitor_enabled_widgets' not in settings or not isinstance(settings['monitor_enabled_widgets'], dict):
                 settings['monitor_enabled_widgets'] = {}
+            if len(sys.argv) >= 6:
+                try:
+                    explicit_list = json.loads(sys.argv[5])
+                    if isinstance(explicit_list, list):
+                        settings['monitor_enabled_widgets'][monitor] = explicit_list
+                except Exception:
+                    pass
             if monitor not in settings['monitor_enabled_widgets']:
-                settings['monitor_enabled_widgets'][monitor] = list(settings.get('enabled_widgets', DEFAULT_ENABLED))
+                settings['monitor_enabled_widgets'][monitor] = []
             m_set = set(settings['monitor_enabled_widgets'][monitor])
             if enable:
                 m_set.add(widget_id)
@@ -452,11 +465,12 @@ def main():
             settings['monitor_enabled_widgets'][monitor] = list(m_set)
 
         enabled = set(settings.get('enabled_widgets', []))
-        if enable:
-            enabled.add(widget_id)
-        elif not monitor:
-            enabled.discard(widget_id)
-        settings['enabled_widgets'] = list(enabled)
+        if not monitor:
+            if enable:
+                enabled.add(widget_id)
+            else:
+                enabled.discard(widget_id)
+            settings['enabled_widgets'] = list(enabled)
 
         save_settings(settings)
         print(json.dumps({
@@ -472,10 +486,11 @@ def main():
         if 'monitor_enabled_widgets' not in settings or not isinstance(settings['monitor_enabled_widgets'], dict):
             settings['monitor_enabled_widgets'] = {}
 
-        if from_mon in settings['monitor_enabled_widgets']:
-            from_set = set(settings['monitor_enabled_widgets'][from_mon])
-            from_set.discard(widget_id)
-            settings['monitor_enabled_widgets'][from_mon] = list(from_set)
+        if from_mon not in settings['monitor_enabled_widgets']:
+            settings['monitor_enabled_widgets'][from_mon] = list(settings.get('enabled_widgets', DEFAULT_ENABLED))
+        from_set = set(settings['monitor_enabled_widgets'][from_mon])
+        from_set.discard(widget_id)
+        settings['monitor_enabled_widgets'][from_mon] = list(from_set)
 
         if to_mon not in settings['monitor_enabled_widgets']:
             settings['monitor_enabled_widgets'][to_mon] = []
@@ -785,7 +800,9 @@ def main():
         backup = {
             'positions': copy.deepcopy(settings.get('positions', {})),
             'enabled_widgets': list(settings.get('enabled_widgets', DEFAULT_ENABLED)),
-            'widget_settings': copy.deepcopy(settings.get('widget_settings', {}))
+            'widget_settings': copy.deepcopy(settings.get('widget_settings', {})),
+            'monitor_positions': copy.deepcopy(settings.get('monitor_positions', {})),
+            'monitor_enabled_widgets': copy.deepcopy(settings.get('monitor_enabled_widgets', {}))
         }
         settings['saved_layout'] = backup
         active = settings.get('active_profile', 'Default')
@@ -795,7 +812,9 @@ def main():
             "description": f"Saved layout profile for {active}",
             "positions": copy.deepcopy(backup['positions']),
             "enabled_widgets": list(backup['enabled_widgets']),
-            "widget_settings": copy.deepcopy(backup['widget_settings'])
+            "widget_settings": copy.deepcopy(backup['widget_settings']),
+            "monitor_positions": copy.deepcopy(backup.get('monitor_positions', {})),
+            "monitor_enabled_widgets": copy.deepcopy(backup.get('monitor_enabled_widgets', {}))
         }
         settings['layout_profiles'] = profs
         save_settings(settings)
@@ -812,10 +831,14 @@ def main():
             settings['enabled_widgets'] = list(saved.get('enabled_widgets', DEFAULT_ENABLED))
             if 'widget_settings' in saved:
                 settings['widget_settings'] = copy.deepcopy(saved.get('widget_settings', {}))
+            settings['monitor_positions'] = copy.deepcopy(saved.get('monitor_positions', {}))
+            settings['monitor_enabled_widgets'] = copy.deepcopy(saved.get('monitor_enabled_widgets', {}))
             reverted = True
         else:
             settings['positions'] = {}
             settings['enabled_widgets'] = list(DEFAULT_ENABLED)
+            settings['monitor_positions'] = {}
+            settings['monitor_enabled_widgets'] = {}
             reverted = False
         save_settings(settings)
         print(json.dumps({
@@ -824,7 +847,9 @@ def main():
             "has_saved_layout": bool(saved),
             "positions": settings['positions'],
             "enabled_widgets": settings['enabled_widgets'],
-            "widget_settings": settings.get('widget_settings', {})
+            "widget_settings": settings.get('widget_settings', {}),
+            "monitor_positions": settings.get('monitor_positions', {}),
+            "monitor_enabled_widgets": settings.get('monitor_enabled_widgets', {})
         }))
     elif action == 'reset_factory':
         settings.pop('saved_layout', None)
