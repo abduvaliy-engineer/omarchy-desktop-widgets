@@ -458,6 +458,18 @@ omarchy-shell dagyr.desktop-widgets-update close
 
 ## 📜 Release History
 
+### 🌟 v1.2.5 — Multi-Monitor Widget Isolation & Per-Monitor Auto-Hide
+- **🖥️ Monitor-Isolated Widget Ownership**:
+  - Widgets now strictly belong to their assigned monitor and do not clone or duplicate across secondary outputs.
+  - Added deterministic fallback so unassigned or legacy layouts cleanly appear only on the primary display.
+- **👁️ Per-Monitor Auto-Hide**:
+  - Bound workspace detection to each screen's Hyprland monitor output (`Hyprland.monitorFor(desktopWindow.screen).activeWorkspace`).
+  - Active application windows on one screen now only hide widgets on *that* specific monitor, leaving empty secondary monitors showing their widgets.
+- **🔄 Fixed Move-to-Monitor Transfer**:
+  - Moving widgets between monitors via context menu reliably disassociates the widget from the source display before registering it on the target screen.
+- **🧩 Custom Widget Contract**:
+  - Standalone widgets (`HeroClock`, `PhotoGallery`, `SystemResources`, `MediaPlayer`, `NetworkTraffic`, `GitActivity`, `HardwareTelemetry`, `Pomodoro`, `QuickNotes`) now explicitly forward their `monitorName` into position persistence and toggle routines.
+
 ### 🌟 v1.2.4 — Crypto Tracker Widget & `WidgetCard` Multi-Monitor Updates
 - **🪙 Crypto Tracker Widget (`CoinTrackerWidget.qml`)**:
   - Live cryptocurrency price tracking powered by backend helper (`get-crypto`).
