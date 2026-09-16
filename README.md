@@ -66,9 +66,23 @@ Featuring a 3D photo stack gallery, real-time network traffic sparklines, CPU/GP
     - Live cryptocurrency market tracker featuring multi-coin watchlist, cycling navigation, and custom Coinbase coin adding.
     - Interactive 24-hour canvas sparkline area chart with hover scrubber crosshair and hourly price tooltips.
     - 24-hour high/low range progress gauge and multi-currency switching (USD `$`, EUR `€`, GBP `£`).
-    - Configurable refresh intervals (30s, 1m, 5m), automatic coin cycling, and gradient area fill toggle.
 
-All 13 widgets are built-in and available right out of the box from the desktop **Add Widgets** drawer or right-click wallpaper menu.
+14. **⏱️ Luxury & Bauhaus Analog Clock** (`widgets/AnalogClockWidget.qml`)
+    - Precision timepiece featuring a 60 FPS smooth second-hand sweep without jitter.
+    - 4 switchable dial aesthetic styles: **Swiss Chronograph**, **Minimalist Bauhaus**, **Aviation Flieger**, and **Cyberpunk HUD**.
+    - Dual functional complications: UTC 24h sub-dial, running seconds sub-dial, and date window complication.
+    - Right-click context menu to switch dial styles, toggle complications, customize sizing, and toggle frameless mode.
+15. **📅 Interactive Calendar & Agenda** (`widgets/CalendarWidget.qml`)
+    - Interactive monthly calendar grid with month navigation (`<` / `>`) and "Today" jump shortcut.
+    - Day selection with visual event dot indicators.
+    - Built-in Daily Agenda with in-widget scheduling modal for date & time ranges, category tags (`#work`, `#meeting`, `#personal`, `#deadline`), click-to-edit events, and completion checkmarks.
+16. **📡 Live RSS Feed Radar** (`widgets/rss-feed/RssFeedWidget.qml`)
+    - Multi-channel news and article feed reader supporting both RSS 2.0 and Atom 1.0 XML feeds.
+    - Default curated feeds (Hacker News, Ars Technica, Omarchy News) with interactive channel tabs.
+    - Built-in **Add Custom Feed** dialog allowing users to input any custom RSS or Atom URL.
+    - Click article headlines to launch directly in your default browser via `xdg-open`.
+
+All 16 widgets are built-in and available right out of the box from the desktop **Add Widgets** drawer or right-click wallpaper menu.
 
 ---
 
@@ -458,6 +472,29 @@ omarchy-shell dagyr.desktop-widgets-update close
 ---
 
 ## 📜 Release History
+
+### 🌟 v1.2.8 — Analog Clock, Interactive Calendar, RSS Feed Radar & Reliability Fixes
+- **⏱️ Luxury & Bauhaus Analog Clock (`widgets/AnalogClockWidget.qml`)**:
+  - High-precision 60 FPS smooth second-hand sweep synchronized with system time without stutter.
+  - 4 curated timepiece styles: Swiss Chronograph, Bauhaus Minimalist, Aviation Flieger B-Uhr, and Cyberpunk HUD.
+  - Functional complications: 24h UTC complication sub-dial, running seconds sub-dial, and date window complication.
+  - Right-click option for frameless clock display (pure timepiece without background container).
+- **📅 Interactive Calendar & Agenda (`widgets/CalendarWidget.qml`)**:
+  - Full monthly calendar matrix with day selection, month navigation, and today jump.
+  - In-widget scheduling sub-modal supporting custom event titles, multi-day date ranges, time ranges, and category tags.
+  - Direct event editing with one click on any scheduled event row or edit pencil icon.
+  - Wayland layer-shell keyboard focus promotion and Enter key shortcut for immediate event scheduling.
+  - Built-in daily agenda checklist with task completion toggling and delete.
+- **📡 RSS Feed Radar (`widgets/rss-feed/RssFeedWidget.qml` + `get-rss.py`)**:
+  - Real-time RSS 2.0 and Atom 1.0 feed fetcher with local caching.
+  - Preset channels (Hacker News, Ars Technica, Omarchy News) plus dynamic user custom feed input dialog.
+  - Article list with publication timestamps, channel badge, and single-click browser opening.
+- **🌿 Git Activity Radar Fix**:
+  - Fixed QML engine signal collision where `GitActivityWidget` declared `function settingsLoaded()` instead of signal handler `onSettingsLoaded`.
+  - Restored full instant visibility and reactive reloading of the Git Activity radar on desktop.
+- **🧩 WidgetCard Layout & Height Bugfix**:
+  - Fixed RowLayout header expansion bug in `WidgetCard.qml` where an unconstrained spacer consumed 50% card height.
+  - Added support for frameless widget mode and card surface clipping.
 
 ### 🌟 v1.2.6 — Git Tracker Layout Persistence & Cloud Drive Monitoring
 - **🌿 Git Tracker Layout & Preset Persistence**:

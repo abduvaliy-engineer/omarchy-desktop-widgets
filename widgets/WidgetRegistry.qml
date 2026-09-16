@@ -120,6 +120,33 @@ QtObject {
       badge: "Core",
       description: "Live cryptocurrency market tracker with multi-coin watchlist, auto-cycle, interactive sparklines, and fiat switcher.",
       componentUrl: Qt.resolvedUrl("CoinTrackerWidget.qml")
+    },
+    {
+      id: "analog_clock",
+      name: "Luxury & Bauhaus Analog Clock",
+      category: "Glance",
+      icon: "\uf017",
+      badge: "Chronograph",
+      description: "Precision timepiece with 60 FPS sweep, Swiss chronograph subdials, date complication, and multiple styles.",
+      componentUrl: Qt.resolvedUrl("AnalogClockWidget.qml")
+    },
+    {
+      id: "calendar",
+      name: "Interactive Calendar & Agenda",
+      category: "Productivity",
+      icon: "\uf073",
+      badge: "Planner",
+      description: "Interactive monthly planner grid with day navigation and tagged daily agenda checklist.",
+      componentUrl: Qt.resolvedUrl("CalendarWidget.qml")
+    },
+    {
+      id: "rss_feed",
+      name: "RSS Feed Radar",
+      category: "Glance",
+      icon: "\uf09e",
+      badge: "Live Feeds",
+      description: "News and article reader with customizable RSS/Atom feeds, channel tabs, and browser integration.",
+      componentUrl: Qt.resolvedUrl("rss-feed/RssFeedWidget.qml")
     }
   ]
 

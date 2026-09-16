@@ -21,7 +21,10 @@ BUILTIN_MIGRATION = {
     "AppLauncherWidget.qml": "app_launcher",
     "FolderViewWidget.qml": "folder_view",
     "BtcTrackerWidget.qml": "coin_tracker",
-    "CoinTrackerWidget.qml": "coin_tracker"
+    "CoinTrackerWidget.qml": "coin_tracker",
+    "AnalogClockWidget.qml": "analog_clock",
+    "CalendarWidget.qml": "calendar",
+    "RssFeedWidget.qml": "rss_feed"
 }
 
 BUILTIN_PROFILES = {
@@ -59,13 +62,14 @@ BUILTIN_PROFILES = {
     },
     "Productivity": {
         "name": "Productivity",
-        "description": "Focus workspace equipped with Pomodoro timer, Kanban todos, Git radar, and folder view.",
-        "enabled_widgets": ["clock", "quick_notes", "pomodoro", "git_activity", "folder_view"],
+        "description": "Focus workspace equipped with Pomodoro timer, Kanban todos, Git radar, and interactive calendar agenda.",
+        "enabled_widgets": ["clock", "quick_notes", "pomodoro", "git_activity", "calendar", "folder_view"],
         "positions": {
             "clock": {"x": 700, "y": 20},
             "quick_notes": {"x": 40, "y": 280, "w": 320, "h": 340},
             "pomodoro": {"x": 40, "y": 640, "w": 320, "h": 420},
             "git_activity": {"x": 380, "y": 560, "w": 360, "h": 500},
+            "calendar": {"x": 760, "y": 240, "w": 340, "h": 420},
             "folder_view": {"x": 760, "y": 680, "w": 340, "h": 380}
         },
         "widget_settings": {
@@ -77,7 +81,7 @@ BUILTIN_PROFILES = {
     "Full Dashboard": {
         "name": "Full Dashboard",
         "description": "Comprehensive command center featuring all desktop widgets arranged across the screen.",
-        "enabled_widgets": ["clock", "gallery", "weather", "coin_tracker", "quick_notes", "pomodoro", "git_activity", "folder_view", "app_launcher", "network", "media", "hardware_telemetry", "system"],
+        "enabled_widgets": ["clock", "gallery", "weather", "coin_tracker", "quick_notes", "pomodoro", "git_activity", "folder_view", "app_launcher", "network", "media", "hardware_telemetry", "system", "analog_clock", "calendar", "rss_feed"],
         "positions": {
             "clock": {"x": 700, "y": 20},
             "gallery": {"x": 20, "y": 40, "w": 360, "h": 220},
@@ -85,8 +89,11 @@ BUILTIN_PROFILES = {
             "pomodoro": {"x": 40, "y": 640, "w": 320, "h": 420},
             "weather": {"x": 400, "y": 140, "w": 340, "h": 250},
             "coin_tracker": {"x": 760, "y": 140, "w": 350, "h": 245},
-            "git_activity": {"x": 380, "y": 560, "w": 360, "h": 500},
-            "folder_view": {"x": 760, "y": 680, "w": 340, "h": 380},
+            "git_activity": {"x": 380, "y": 420, "w": 360, "h": 440},
+            "rss_feed": {"x": 380, "y": 880, "w": 360, "h": 440},
+            "calendar": {"x": 760, "y": 420, "w": 340, "h": 440},
+            "folder_view": {"x": 760, "y": 880, "w": 340, "h": 380},
+            "analog_clock": {"x": 1140, "y": 40, "w": 280, "h": 280},
             "app_launcher": {"x": 1140, "y": 640, "w": 360, "h": 420},
             "network": {"x": 1520, "y": 40, "w": 360, "h": 180},
             "media": {"x": 1520, "y": 240, "w": 360, "h": 120},

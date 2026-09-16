@@ -116,7 +116,7 @@ WidgetCard {
     }
   }
 
-  function settingsLoaded() {
+  onSettingsLoaded: {
     refreshGitPulse()
   }
 
