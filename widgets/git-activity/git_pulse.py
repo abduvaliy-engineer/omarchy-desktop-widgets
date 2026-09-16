@@ -29,6 +29,35 @@ def save_settings(settings):
     except Exception:
         pass
 
+def get_custom_repos_from_settings(settings):
+    if not isinstance(settings, dict):
+        return []
+    ws_repos = settings.get("widget_settings", {}).get("git_activity", {}).get("custom_repos")
+    if isinstance(ws_repos, list):
+        return ws_repos
+    return settings.get("git_custom_repos", [])
+
+def get_active_repo_from_settings(settings):
+    if not isinstance(settings, dict):
+        return ""
+    ws_act = settings.get("widget_settings", {}).get("git_activity", {}).get("active_repo")
+    if ws_act is not None and isinstance(ws_act, str):
+        return ws_act
+    return settings.get("git_active_repo", "")
+
+def sync_repos_to_settings(settings, custom_repos, active_repo=None):
+    if not isinstance(settings, dict):
+        return
+    if "widget_settings" not in settings or not isinstance(settings["widget_settings"], dict):
+        settings["widget_settings"] = {}
+    if "git_activity" not in settings["widget_settings"] or not isinstance(settings["widget_settings"]["git_activity"], dict):
+        settings["widget_settings"]["git_activity"] = {}
+    settings["widget_settings"]["git_activity"]["custom_repos"] = custom_repos
+    settings["git_custom_repos"] = custom_repos
+    if active_repo is not None:
+        settings["widget_settings"]["git_activity"]["active_repo"] = active_repo
+        settings["git_active_repo"] = active_repo
+
 def normalize_remote_url(url):
     if not url or not isinstance(url, str):
         return ""
@@ -561,7 +590,7 @@ def get_git_data(repo_path, all_repos=None, num_weeks=12):
 
 def main():
     settings = load_settings()
-    custom_repos = settings.get("git_custom_repos", [])
+    custom_repos = list(get_custom_repos_from_settings(settings))
 
     # Handle argument to switch active repository, remove, or open picker dialog
     if len(sys.argv) > 1 and sys.argv[1].strip():
@@ -571,8 +600,7 @@ def main():
             if chosen:
                 if chosen not in custom_repos:
                     custom_repos.append(chosen)
-                    settings["git_custom_repos"] = custom_repos
-                settings["git_active_repo"] = chosen
+                sync_repos_to_settings(settings, custom_repos, chosen)
                 save_settings(settings)
         elif req == "pick_remote_dialog":
             chosen = pick_remote_url_dialog()
@@ -580,48 +608,46 @@ def main():
                 sync_remote_repo(chosen)
                 if chosen not in custom_repos:
                     custom_repos.append(chosen)
-                    settings["git_custom_repos"] = custom_repos
-                settings["git_active_repo"] = chosen
+                sync_repos_to_settings(settings, custom_repos, chosen)
                 save_settings(settings)
         elif req.startswith("remove:"):
             target_to_remove = req[7:].strip()
             if target_to_remove in custom_repos:
                 custom_repos = [r for r in custom_repos if r != target_to_remove]
-                settings["git_custom_repos"] = custom_repos
                 if is_remote_url(target_to_remove):
                     c_path = os.path.join(CACHE_DIR, get_remote_slug(target_to_remove))
                     if os.path.exists(c_path):
                         shutil.rmtree(c_path, ignore_errors=True)
-            if settings.get("git_active_repo") == target_to_remove:
-                settings["git_active_repo"] = custom_repos[0] if custom_repos else ""
+            new_active = get_active_repo_from_settings(settings)
+            if new_active == target_to_remove:
+                new_active = custom_repos[0] if custom_repos else ""
+            sync_repos_to_settings(settings, custom_repos, new_active)
             save_settings(settings)
         elif req == "ALL":
-            settings["git_active_repo"] = "ALL"
+            sync_repos_to_settings(settings, custom_repos, "ALL")
             save_settings(settings)
         elif is_remote_url(req):
             norm_url = normalize_remote_url(req)
             sync_remote_repo(norm_url)
             if norm_url not in custom_repos:
                 custom_repos.append(norm_url)
-                settings["git_custom_repos"] = custom_repos
-            settings["git_active_repo"] = norm_url
+            sync_repos_to_settings(settings, custom_repos, norm_url)
             save_settings(settings)
         elif os.path.exists(req) and os.path.exists(os.path.join(req, '.git')):
             if req not in custom_repos:
                 custom_repos.append(req)
-                settings["git_custom_repos"] = custom_repos
-            settings["git_active_repo"] = req
+            sync_repos_to_settings(settings, custom_repos, req)
             save_settings(settings)
 
     detected_repos = find_repos(custom_repos)
 
-    active_repo = settings.get("git_active_repo", "")
+    active_repo = get_active_repo_from_settings(settings)
     if active_repo == "ALL":
         if not detected_repos:
             active_repo = ""
     elif not active_repo or not any(r["path"] == active_repo for r in detected_repos):
         active_repo = detected_repos[0]["path"] if detected_repos else ""
-        settings["git_active_repo"] = active_repo
+        sync_repos_to_settings(settings, custom_repos, active_repo)
         save_settings(settings)
 
     data = get_git_data(active_repo, detected_repos)

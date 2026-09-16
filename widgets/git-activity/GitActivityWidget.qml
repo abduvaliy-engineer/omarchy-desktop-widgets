@@ -110,6 +110,16 @@ WidgetCard {
     return Qt.rgba(1, 1, 1, 0.06)      // Blank cell
   }
 
+  function refreshGitPulse() {
+    if (!gitPulseProc.running) {
+      gitPulseProc.running = true
+    }
+  }
+
+  function settingsLoaded() {
+    refreshGitPulse()
+  }
+
   // 1. Regular background polling process (never mutated, runs with no arguments)
   Process {
     id: gitPulseProc

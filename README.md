@@ -27,8 +27,9 @@ Featuring a 3D photo stack gallery, real-time network traffic sparklines, CPU/GP
    - **Popout Device Selector**: Right-click context menu flyout to choose which network device is actively monitored (Wi-Fi, Ethernet, Tailscale VPN, Docker/bridge, Loopback, or Auto-detect).
 4. **💾 System Resources & Storage Matrix** (`SystemResourcesWidget.qml`)
    - Live RAM memory usage gauge with optional compact percentage format.
-   - Multi-drive storage monitor tracking Root (`/`), external drives, and secondary mount points.
-   - Monitored drive checkboxes to select which drives are displayed on the desktop.
+   - Multi-drive storage monitor tracking Root (`/`), secondary/external drives, and linked cloud drives (e.g. Google Drive, OneDrive, iCloud mounted under `~/Cloud/` or via FUSE/rclone).
+   - Click any drive row to instantly open its directory in your default file manager.
+   - Monitored drive checkboxes in the right-click menu to select which drives are displayed on the desktop.
 5. **🎵 MPRIS Media Player** (`MediaPlayerWidget.qml`)
    - Seamless media playback control (Play/Pause, Next, Prev) with album artwork and track metadata.
    - Integrated live audio spectrum visualizer bar.
@@ -457,6 +458,17 @@ omarchy-shell dagyr.desktop-widgets-update close
 ---
 
 ## 📜 Release History
+
+### 🌟 v1.2.6 — Git Tracker Layout Persistence & Cloud Drive Monitoring
+- **🌿 Git Tracker Layout & Preset Persistence**:
+  - Unified Git Tracker repository storage across standard `widget_settings["git_activity"]` and legacy root state keys.
+  - Tracked local and remote repositories and active repo selection are now safely captured during **Save Layout** (`save_layout_backup`), custom preset saving (`save_profile`, `save_profile_dialog`), and profile exports.
+  - Switching layout presets or executing **Revert to Saved Layout / Reset Layout** preserves all manually added repositories instead of dropping them.
+  - Added reactive `settingsLoaded()` callback in `GitActivityWidget.qml` to immediately re-poll and update Git data upon preset or layout changes.
+- **💾 System Resources Cloud Drive Integration**:
+  - Added auto-discovery and telemetry for linked cloud storage mounts (e.g., Google Drive, OneDrive, iCloud, Nextcloud mounted under `~/Cloud/` or via FUSE/rclone).
+  - Added interactive click-to-open on disk rows to launch mounted directories in your default file manager.
+  - Distinct cloud drive iconography (`\uf0c2`) and context menu monitoring toggles.
 
 ### 🌟 v1.2.5 — Multi-Monitor Widget Isolation & Per-Monitor Auto-Hide
 - **🖥️ Monitor-Isolated Widget Ownership**:

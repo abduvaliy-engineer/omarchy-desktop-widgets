@@ -128,6 +128,13 @@ WidgetCard {
             }
 
             Text {
+              text: modelData.icon || "\uf0a0"
+              font.family: Style.font.family
+              font.pixelSize: 11
+              color: isMonitored ? Color.accent : Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.4)
+            }
+
+            Text {
               Layout.fillWidth: true
               text: modelData.label
               font.family: Style.font.family
@@ -529,48 +536,85 @@ WidgetCard {
     Repeater {
       model: systemWidgetRoot.visibleDisks
 
-      ColumnLayout {
+      Rectangle {
         required property var modelData
         Layout.fillWidth: true
-        spacing: Style.space(4)
+        implicitHeight: diskRowCol.implicitHeight + Style.space(6)
+        radius: 6
+        color: diskRowMouse.containsMouse && (!rootRef || !rootRef.layoutEditMode) ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.12) : "transparent"
 
-        RowLayout {
-          Layout.fillWidth: true
+        Behavior on color {
+          ColorAnimation { duration: 150 }
+        }
 
-          Text {
-            text: modelData.label
-            font.family: Style.font.family
-            font.pixelSize: 12
-            font.weight: Font.Medium
-            color: Color.foreground
+        ColumnLayout {
+          id: diskRowCol
+          anchors.fill: parent
+          anchors.leftMargin: Style.space(4)
+          anchors.rightMargin: Style.space(4)
+          anchors.topMargin: Style.space(2)
+          anchors.bottomMargin: Style.space(2)
+          spacing: Style.space(4)
+
+          RowLayout {
+            Layout.fillWidth: true
+            spacing: Style.space(6)
+
+            Text {
+              text: modelData.icon || "\uf0a0"
+              font.family: Style.font.family
+              font.pixelSize: 11
+              color: Color.accent
+            }
+
+            Text {
+              Layout.fillWidth: true
+              text: modelData.label
+              font.family: Style.font.family
+              font.pixelSize: 12
+              font.weight: Font.Medium
+              color: Color.foreground
+              elide: Text.ElideRight
+            }
+
+            Text {
+              text: modelData.avail + " Free (" + modelData.size + " total)"
+              font.family: Style.font.family
+              font.pixelSize: 11
+              font.weight: Font.DemiBold
+              color: Color.accent
+            }
           }
 
-          Item { Layout.fillWidth: true }
+          // Disk Progress Bar
+          Rectangle {
+            Layout.fillWidth: true
+            height: 6
+            radius: 3
+            color: Qt.rgba(1, 1, 1, 0.08)
 
-          Text {
-            text: modelData.avail + " Free (" + modelData.size + " total)"
-            font.family: Style.font.family
-            font.pixelSize: 11
-            font.weight: Font.DemiBold
-            color: Color.accent
+            Rectangle {
+              width: Math.max(6, parent.width * Math.min(1.0, modelData.pct))
+              height: parent.height
+              radius: 3
+              color: modelData.pct > 0.90 ? Color.urgent : Color.accent
+
+              Behavior on width {
+                NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+              }
+            }
           }
         }
 
-        // Disk Progress Bar
-        Rectangle {
-          Layout.fillWidth: true
-          height: 6
-          radius: 3
-          color: Qt.rgba(1, 1, 1, 0.08)
-
-          Rectangle {
-            width: Math.max(6, parent.width * Math.min(1.0, modelData.pct))
-            height: parent.height
-            radius: 3
-            color: modelData.pct > 0.90 ? Color.urgent : Color.accent
-
-            Behavior on width {
-              NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+        MouseArea {
+          id: diskRowMouse
+          anchors.fill: parent
+          hoverEnabled: true
+          enabled: !rootRef || !rootRef.layoutEditMode
+          cursorShape: Qt.PointingHandCursor
+          onClicked: {
+            if (modelData.mount) {
+              Quickshell.execDetached(["xdg-open", modelData.mount])
             }
           }
         }

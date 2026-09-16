@@ -379,7 +379,38 @@ def load_settings():
     if 'monitor_enabled_widgets' not in data or not isinstance(data['monitor_enabled_widgets'], dict):
         data['monitor_enabled_widgets'] = {}
 
+    sync_git_settings(data)
     return migrate_custom_builtins(data)
+
+def sync_git_settings(data, backup_or_prof=None):
+    if not isinstance(data, dict):
+        return
+    ws = data.setdefault('widget_settings', {})
+    git_ws = ws.setdefault('git_activity', {})
+
+    repos = data.get('git_custom_repos')
+    if repos is None and isinstance(git_ws.get('custom_repos'), list):
+        repos = git_ws['custom_repos']
+    if repos is None and backup_or_prof and isinstance(backup_or_prof.get('git_custom_repos'), list):
+        repos = backup_or_prof['git_custom_repos']
+    if repos is None and backup_or_prof and isinstance(backup_or_prof.get('widget_settings', {}).get('git_activity', {}).get('custom_repos'), list):
+        repos = backup_or_prof['widget_settings']['git_activity']['custom_repos']
+
+    if repos is not None:
+        data['git_custom_repos'] = copy.deepcopy(repos)
+        git_ws['custom_repos'] = copy.deepcopy(repos)
+
+    act = data.get('git_active_repo')
+    if (not act) and isinstance(git_ws.get('active_repo'), str) and git_ws['active_repo']:
+        act = git_ws['active_repo']
+    if (not act) and backup_or_prof and backup_or_prof.get('git_active_repo'):
+        act = backup_or_prof['git_active_repo']
+    if (not act) and backup_or_prof and backup_or_prof.get('widget_settings', {}).get('git_activity', {}).get('active_repo'):
+        act = backup_or_prof['widget_settings']['git_activity']['active_repo']
+
+    if act:
+        data['git_active_repo'] = act
+        git_ws['active_repo'] = act
 
 def save_settings(data):
     try:
@@ -581,6 +612,9 @@ def main():
         profs = settings.get('layout_profiles', {})
         if target_name in profs:
             prof = profs[target_name]
+            current_git_repos = settings.get('git_custom_repos', [])
+            current_git_active = settings.get('git_active_repo', '')
+
             settings['active_profile'] = target_name
             settings['positions'] = copy.deepcopy(prof.get('positions', {}))
             settings['enabled_widgets'] = list(prof.get('enabled_widgets', DEFAULT_ENABLED))
@@ -591,6 +625,20 @@ def main():
                     if wid not in settings['widget_settings'] or not isinstance(settings['widget_settings'][wid], dict):
                         settings['widget_settings'][wid] = {}
                     settings['widget_settings'][wid].update(copy.deepcopy(wsets))
+
+            # If target preset has git repos, load them; otherwise preserve current user repos
+            if 'git_custom_repos' in prof and prof['git_custom_repos']:
+                settings['git_custom_repos'] = copy.deepcopy(prof['git_custom_repos'])
+            elif current_git_repos:
+                settings['git_custom_repos'] = current_git_repos
+
+            if 'git_active_repo' in prof and prof['git_active_repo']:
+                settings['git_active_repo'] = prof['git_active_repo']
+            elif current_git_active:
+                settings['git_active_repo'] = current_git_active
+
+            sync_git_settings(settings, prof)
+
             if 'monitor_enabled_widgets' in prof and isinstance(prof['monitor_enabled_widgets'], dict):
                 settings['monitor_enabled_widgets'] = copy.deepcopy(prof['monitor_enabled_widgets'])
             else:
@@ -613,6 +661,7 @@ def main():
             print(json.dumps({"status": "error", "error": f"Profile '{target_name}' not found"}))
     elif action == 'save_profile' and len(sys.argv) >= 3:
         target_name = sys.argv[2]
+        sync_git_settings(settings)
         profs = settings.get('layout_profiles', {})
         profs[target_name] = {
             "name": target_name,
@@ -621,7 +670,9 @@ def main():
             "enabled_widgets": list(settings.get('enabled_widgets', DEFAULT_ENABLED)),
             "widget_settings": copy.deepcopy(settings.get('widget_settings', {})),
             "monitor_positions": copy.deepcopy(settings.get('monitor_positions', {})),
-            "monitor_enabled_widgets": copy.deepcopy(settings.get('monitor_enabled_widgets', {}))
+            "monitor_enabled_widgets": copy.deepcopy(settings.get('monitor_enabled_widgets', {})),
+            "git_custom_repos": copy.deepcopy(settings.get('git_custom_repos', [])),
+            "git_active_repo": settings.get('git_active_repo', '')
         }
         settings['layout_profiles'] = profs
         settings['active_profile'] = target_name
@@ -634,6 +685,7 @@ def main():
     elif action == 'save_profile_dialog':
         name = prompt_text_dialog(title="Save Layout Preset", text="Enter a name for this preset:", default="Custom Preset")
         if name:
+            sync_git_settings(settings)
             profs = settings.get('layout_profiles', {})
             profs[name] = {
                 "name": name,
@@ -642,7 +694,9 @@ def main():
                 "enabled_widgets": list(settings.get('enabled_widgets', DEFAULT_ENABLED)),
                 "widget_settings": copy.deepcopy(settings.get('widget_settings', {})),
                 "monitor_positions": copy.deepcopy(settings.get('monitor_positions', {})),
-                "monitor_enabled_widgets": copy.deepcopy(settings.get('monitor_enabled_widgets', {}))
+                "monitor_enabled_widgets": copy.deepcopy(settings.get('monitor_enabled_widgets', {})),
+                "git_custom_repos": copy.deepcopy(settings.get('git_custom_repos', [])),
+                "git_active_repo": settings.get('git_active_repo', '')
             }
             settings['layout_profiles'] = profs
             settings['active_profile'] = name
@@ -675,12 +729,20 @@ def main():
         profs = settings.get('layout_profiles', {})
         prof = profs.get(target_name)
         if not prof:
+            sync_git_settings(settings)
             prof = {
                 "name": target_name,
                 "positions": copy.deepcopy(settings.get('positions', {})),
                 "enabled_widgets": list(settings.get('enabled_widgets', DEFAULT_ENABLED)),
-                "widget_settings": copy.deepcopy(settings.get('widget_settings', {}))
+                "widget_settings": copy.deepcopy(settings.get('widget_settings', {})),
+                "git_custom_repos": copy.deepcopy(settings.get('git_custom_repos', [])),
+                "git_active_repo": settings.get('git_active_repo', '')
             }
+        else:
+            if 'git_custom_repos' not in prof and settings.get('git_custom_repos'):
+                prof['git_custom_repos'] = copy.deepcopy(settings.get('git_custom_repos', []))
+            if 'git_active_repo' not in prof and settings.get('git_active_repo'):
+                prof['git_active_repo'] = settings.get('git_active_repo', '')
         export_payload = {
             "version": "1.0",
             "type": "omarchy-desktop-widgets-profile",
@@ -720,7 +782,9 @@ def main():
                     "enabled_widgets": list(prof.get('enabled_widgets', DEFAULT_ENABLED)),
                     "widget_settings": copy.deepcopy(prof.get('widget_settings', {})),
                     "monitor_positions": copy.deepcopy(prof.get('monitor_positions', {})),
-                    "monitor_enabled_widgets": copy.deepcopy(prof.get('monitor_enabled_widgets', {}))
+                    "monitor_enabled_widgets": copy.deepcopy(prof.get('monitor_enabled_widgets', {})),
+                    "git_custom_repos": copy.deepcopy(prof.get('git_custom_repos', [])),
+                    "git_active_repo": prof.get('git_active_repo', '')
                 }
                 settings['layout_profiles'] = profs
                 settings['active_profile'] = name
@@ -728,6 +792,11 @@ def main():
                 settings['enabled_widgets'] = list(profs[name]['enabled_widgets'])
                 if 'widget_settings' in profs[name]:
                     settings['widget_settings'] = copy.deepcopy(profs[name]['widget_settings'])
+                if 'git_custom_repos' in profs[name] and profs[name]['git_custom_repos']:
+                    settings['git_custom_repos'] = copy.deepcopy(profs[name]['git_custom_repos'])
+                if 'git_active_repo' in profs[name] and profs[name]['git_active_repo']:
+                    settings['git_active_repo'] = profs[name]['git_active_repo']
+                sync_git_settings(settings, profs[name])
                 settings['monitor_positions'] = copy.deepcopy(profs[name]['monitor_positions'])
                 settings['monitor_enabled_widgets'] = copy.deepcopy(profs[name]['monitor_enabled_widgets'])
                 save_settings(settings)
@@ -797,12 +866,15 @@ def main():
         except Exception as e:
             print(json.dumps({"status": "error", "error": str(e)}))
     elif action == 'save_layout_backup':
+        sync_git_settings(settings)
         backup = {
             'positions': copy.deepcopy(settings.get('positions', {})),
             'enabled_widgets': list(settings.get('enabled_widgets', DEFAULT_ENABLED)),
             'widget_settings': copy.deepcopy(settings.get('widget_settings', {})),
             'monitor_positions': copy.deepcopy(settings.get('monitor_positions', {})),
-            'monitor_enabled_widgets': copy.deepcopy(settings.get('monitor_enabled_widgets', {}))
+            'monitor_enabled_widgets': copy.deepcopy(settings.get('monitor_enabled_widgets', {})),
+            'git_custom_repos': copy.deepcopy(settings.get('git_custom_repos', [])),
+            'git_active_repo': settings.get('git_active_repo', '')
         }
         settings['saved_layout'] = backup
         active = settings.get('active_profile', 'Default')
@@ -814,7 +886,9 @@ def main():
             "enabled_widgets": list(backup['enabled_widgets']),
             "widget_settings": copy.deepcopy(backup['widget_settings']),
             "monitor_positions": copy.deepcopy(backup.get('monitor_positions', {})),
-            "monitor_enabled_widgets": copy.deepcopy(backup.get('monitor_enabled_widgets', {}))
+            "monitor_enabled_widgets": copy.deepcopy(backup.get('monitor_enabled_widgets', {})),
+            "git_custom_repos": copy.deepcopy(backup.get('git_custom_repos', [])),
+            "git_active_repo": backup.get('git_active_repo', '')
         }
         settings['layout_profiles'] = profs
         save_settings(settings)
@@ -826,6 +900,8 @@ def main():
         }))
     elif action in ('reset', 'revert_layout'):
         saved = settings.get('saved_layout')
+        current_git_repos = settings.get('git_custom_repos', [])
+        current_git_active = settings.get('git_active_repo', '')
         if saved and isinstance(saved, dict) and ('positions' in saved or 'enabled_widgets' in saved):
             settings['positions'] = copy.deepcopy(saved.get('positions', {}))
             settings['enabled_widgets'] = list(saved.get('enabled_widgets', DEFAULT_ENABLED))
@@ -833,12 +909,29 @@ def main():
                 settings['widget_settings'] = copy.deepcopy(saved.get('widget_settings', {}))
             settings['monitor_positions'] = copy.deepcopy(saved.get('monitor_positions', {}))
             settings['monitor_enabled_widgets'] = copy.deepcopy(saved.get('monitor_enabled_widgets', {}))
+
+            if 'git_custom_repos' in saved and saved['git_custom_repos']:
+                settings['git_custom_repos'] = copy.deepcopy(saved['git_custom_repos'])
+            elif current_git_repos:
+                settings['git_custom_repos'] = current_git_repos
+
+            if 'git_active_repo' in saved and saved['git_active_repo']:
+                settings['git_active_repo'] = saved['git_active_repo']
+            elif current_git_active:
+                settings['git_active_repo'] = current_git_active
+
+            sync_git_settings(settings, saved)
             reverted = True
         else:
             settings['positions'] = {}
             settings['enabled_widgets'] = list(DEFAULT_ENABLED)
             settings['monitor_positions'] = {}
             settings['monitor_enabled_widgets'] = {}
+            if current_git_repos:
+                settings['git_custom_repos'] = current_git_repos
+            if current_git_active:
+                settings['git_active_repo'] = current_git_active
+            sync_git_settings(settings)
             reverted = False
         save_settings(settings)
         print(json.dumps({
