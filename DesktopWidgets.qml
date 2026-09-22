@@ -337,8 +337,12 @@ Item {
     if (!resetProc.running) resetProc.running = true
   }
 
-  function switchProfile(name) {
-    switchProfileProc.command = [root.manageScriptPath, "switch_profile", name]
+  function switchProfile(name, monitorName) {
+    if (monitorName) {
+      switchProfileProc.command = [root.manageScriptPath, "switch_profile", name, monitorName]
+    } else {
+      switchProfileProc.command = [root.manageScriptPath, "switch_profile", name]
+    }
     if (!switchProfileProc.running) switchProfileProc.running = true
   }
 
@@ -1034,7 +1038,7 @@ Item {
                       anchors.fill: parent
                       hoverEnabled: true
                       cursorShape: Qt.PointingHandCursor
-                      onClicked: root.switchProfile(modelData.name)
+                      onClicked: root.switchProfile(modelData.name, desktopWindow.monitorName)
                     }
                   }
                 }
@@ -1735,7 +1739,7 @@ Item {
                       cursorShape: Qt.PointingHandCursor
                       onClicked: {
                         desktopContextMenu.isOpen = false
-                        root.switchProfile(modelData.name)
+                        root.switchProfile(modelData.name, desktopWindow.monitorName)
                       }
                     }
                   }

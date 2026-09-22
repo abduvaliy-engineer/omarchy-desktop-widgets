@@ -616,6 +616,7 @@ def main():
         }))
     elif action == 'switch_profile' and len(sys.argv) >= 3:
         target_name = sys.argv[2]
+        target_monitor = sys.argv[3] if len(sys.argv) >= 4 else None
         profs = settings.get('layout_profiles', {})
         if target_name in profs:
             prof = profs[target_name]
@@ -623,8 +624,16 @@ def main():
             current_git_active = settings.get('git_active_repo', '')
 
             settings['active_profile'] = target_name
-            settings['positions'] = copy.deepcopy(prof.get('positions', {}))
-            settings['enabled_widgets'] = list(prof.get('enabled_widgets', DEFAULT_ENABLED))
+            if target_monitor:
+                if 'monitor_positions' not in settings or not isinstance(settings['monitor_positions'], dict):
+                    settings['monitor_positions'] = {}
+                if 'monitor_enabled_widgets' not in settings or not isinstance(settings['monitor_enabled_widgets'], dict):
+                    settings['monitor_enabled_widgets'] = {}
+                settings['monitor_positions'][target_monitor] = copy.deepcopy(prof.get('positions', {}))
+                settings['monitor_enabled_widgets'][target_monitor] = list(prof.get('enabled_widgets', DEFAULT_ENABLED))
+            else:
+                settings['positions'] = copy.deepcopy(prof.get('positions', {}))
+                settings['enabled_widgets'] = list(prof.get('enabled_widgets', DEFAULT_ENABLED))
             if 'widget_settings' in prof and isinstance(prof['widget_settings'], dict):
                 if 'widget_settings' not in settings or not isinstance(settings['widget_settings'], dict):
                     settings['widget_settings'] = {}
@@ -646,14 +655,15 @@ def main():
 
             sync_git_settings(settings, prof)
 
-            if 'monitor_enabled_widgets' in prof and isinstance(prof['monitor_enabled_widgets'], dict):
-                settings['monitor_enabled_widgets'] = copy.deepcopy(prof['monitor_enabled_widgets'])
-            else:
-                settings['monitor_enabled_widgets'] = {}
-            if 'monitor_positions' in prof and isinstance(prof['monitor_positions'], dict):
-                settings['monitor_positions'] = copy.deepcopy(prof['monitor_positions'])
-            else:
-                settings['monitor_positions'] = {}
+            if not target_monitor:
+                if 'monitor_enabled_widgets' in prof and isinstance(prof['monitor_enabled_widgets'], dict):
+                    settings['monitor_enabled_widgets'] = copy.deepcopy(prof['monitor_enabled_widgets'])
+                else:
+                    settings['monitor_enabled_widgets'] = {}
+                if 'monitor_positions' in prof and isinstance(prof['monitor_positions'], dict):
+                    settings['monitor_positions'] = copy.deepcopy(prof['monitor_positions'])
+                else:
+                    settings['monitor_positions'] = {}
             save_settings(settings)
             print(json.dumps({
                 "status": "profile_switched",
@@ -661,8 +671,9 @@ def main():
                 "positions": settings['positions'],
                 "enabled_widgets": settings['enabled_widgets'],
                 "widget_settings": settings.get('widget_settings', {}),
-                "monitor_positions": settings['monitor_positions'],
-                "monitor_enabled_widgets": settings['monitor_enabled_widgets']
+                "monitor_positions": settings.get('monitor_positions', {}),
+                "monitor_enabled_widgets": settings.get('monitor_enabled_widgets', {}),
+                "target_monitor": target_monitor
             }))
         else:
             print(json.dumps({"status": "error", "error": f"Profile '{target_name}' not found"}))
