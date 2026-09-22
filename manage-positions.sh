@@ -162,6 +162,50 @@ def sync_blur_toggle(blur_enabled):
         pass
 
 
+
+def adapt_positions_to_monitor(positions, monitor_width=0, monitor_height=0):
+    """Map built-in 1920x1080 preset coordinates to the target monitor.
+
+    Keeps left/top anchored widgets fixed, but preserves right/bottom margins for
+    widgets that were placed near those edges in the preset. This makes presets
+    land on the edge grid of wider/taller outputs instead of staying at eDP-1
+    sized coordinates.
+    """
+    try:
+        mw = int(monitor_width or 0)
+        mh = int(monitor_height or 0)
+    except Exception:
+        mw = 0
+        mh = 0
+    if mw <= 0 and mh <= 0:
+        return copy.deepcopy(positions)
+
+    base_w = 1920
+    base_h = 1080
+    adapted = {}
+    for wid, pos in (positions or {}).items():
+        if not isinstance(pos, dict):
+            adapted[wid] = copy.deepcopy(pos)
+            continue
+        entry = copy.deepcopy(pos)
+        x = entry.get('x')
+        y = entry.get('y')
+        w = entry.get('w')
+        h = entry.get('h')
+        try:
+            if mw > 0 and isinstance(x, (int, float)) and isinstance(w, (int, float)):
+                right_margin = base_w - x - w
+                if x >= base_w * 0.55 and right_margin >= 0:
+                    entry['x'] = max(10, int(round(mw - w - right_margin)))
+            if mh > 0 and isinstance(y, (int, float)) and isinstance(h, (int, float)):
+                bottom_margin = base_h - y - h
+                if y >= base_h * 0.55 and bottom_margin >= 0:
+                    entry['y'] = max(10, int(round(mh - h - bottom_margin)))
+        except Exception:
+            pass
+        adapted[wid] = entry
+    return adapted
+
 def pick_file_dialog(title="Select File", extensions="json", directory=False, save=False):
     # 1. omarchy-file-select (Standard Omarchy XDG Desktop Portal FileChooser)
     omarchy_select = shutil.which('omarchy-file-select')
@@ -617,6 +661,8 @@ def main():
     elif action == 'switch_profile' and len(sys.argv) >= 3:
         target_name = sys.argv[2]
         target_monitor = sys.argv[3] if len(sys.argv) >= 4 else None
+        target_monitor_width = int(sys.argv[4]) if len(sys.argv) >= 5 and str(sys.argv[4]).lstrip('-').isdigit() else 0
+        target_monitor_height = int(sys.argv[5]) if len(sys.argv) >= 6 and str(sys.argv[5]).lstrip('-').isdigit() else 0
         profs = settings.get('layout_profiles', {})
         if target_name in profs:
             prof = profs[target_name]
@@ -629,7 +675,7 @@ def main():
                     settings['monitor_positions'] = {}
                 if 'monitor_enabled_widgets' not in settings or not isinstance(settings['monitor_enabled_widgets'], dict):
                     settings['monitor_enabled_widgets'] = {}
-                settings['monitor_positions'][target_monitor] = copy.deepcopy(prof.get('positions', {}))
+                settings['monitor_positions'][target_monitor] = adapt_positions_to_monitor(prof.get('positions', {}), target_monitor_width, target_monitor_height)
                 settings['monitor_enabled_widgets'][target_monitor] = list(prof.get('enabled_widgets', DEFAULT_ENABLED))
             else:
                 settings['positions'] = copy.deepcopy(prof.get('positions', {}))
@@ -673,7 +719,9 @@ def main():
                 "widget_settings": settings.get('widget_settings', {}),
                 "monitor_positions": settings.get('monitor_positions', {}),
                 "monitor_enabled_widgets": settings.get('monitor_enabled_widgets', {}),
-                "target_monitor": target_monitor
+                "target_monitor": target_monitor,
+                "target_monitor_width": target_monitor_width,
+                "target_monitor_height": target_monitor_height
             }))
         else:
             print(json.dumps({"status": "error", "error": f"Profile '{target_name}' not found"}))
