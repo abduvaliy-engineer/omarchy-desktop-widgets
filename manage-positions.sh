@@ -5,6 +5,9 @@ import json
 import shutil
 import subprocess
 import copy
+import fcntl
+import tempfile
+import time
 
 STATE_DIR = os.path.expanduser('~/.local/state/omarchy')
 STATE_FILE = os.path.join(STATE_DIR, 'dagyr.desktop-widgets.json')
@@ -366,14 +369,23 @@ def migrate_custom_builtins(data):
         save_settings(data)
     return data
 
+def read_state_file():
+    # A state file that exists but will not parse is never "no settings": it is
+    # being written, or damaged. Retry briefly, then refuse to continue rather
+    # than fall back to the defaults and save them over the real layout.
+    for attempt in range(20):
+        try:
+            with open(STATE_FILE, 'r') as f:
+                return json.load(f)
+        except Exception:
+            time.sleep(0.05)
+    sys.stderr.write("manage-positions: could not read %s; leaving it untouched\n" % STATE_FILE)
+    sys.exit(1)
+
 def load_settings():
     data = None
     if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, 'r') as f:
-                data = json.load(f)
-        except Exception:
-            pass
+        data = read_state_file()
     elif os.path.exists(LEGACY_CONFIG):
         try:
             with open(LEGACY_CONFIG, 'r') as f:
@@ -464,16 +476,38 @@ def sync_git_settings(data, backup_or_prof=None):
         git_ws['active_repo'] = act
 
 def save_settings(data):
+    # Write a temp file and rename it over the state file, so a concurrent
+    # reader sees either the old or the new settings, never a half-written file.
+    tmp_path = None
     try:
         os.makedirs(STATE_DIR, exist_ok=True)
-        with open(STATE_FILE, 'w') as f:
+        fd, tmp_path = tempfile.mkstemp(prefix='.dagyr.desktop-widgets.', suffix='.json', dir=STATE_DIR)
+        with os.fdopen(fd, 'w') as f:
             json.dump(data, f, indent=2)
+        os.replace(tmp_path, STATE_FILE)
+        tmp_path = None
     except Exception:
         pass
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+# Actions that wait on a file dialog must not hold the lock while the person
+# picks a file, or every widget save queues up behind them.
+DIALOG_ACTIONS = {'save_profile_dialog', 'export_profile', 'import_profile', 'pick_widget_dialog'}
+
+def lock_state():
+    # Every widget saves through this script, and a shell restart starts them
+    # all at once; serialize the read-modify-write so no update is lost.
+    os.makedirs(STATE_DIR, exist_ok=True)
+    lock_file = open(os.path.join(STATE_DIR, '.dagyr.desktop-widgets.lock'), 'w')
+    fcntl.flock(lock_file, fcntl.LOCK_EX)
+    return lock_file
 
 def main():
-    settings = load_settings()
     action = sys.argv[1] if len(sys.argv) > 1 else 'load'
+    state_lock = None if action in DIALOG_ACTIONS else lock_state()
+    settings = load_settings()
 
     if action == 'save_pos' and len(sys.argv) >= 5:
         widget_id = sys.argv[2]
